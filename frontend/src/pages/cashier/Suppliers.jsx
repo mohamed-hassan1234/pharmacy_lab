@@ -14,7 +14,7 @@ const SupplierManagement = () => {
     const fetchSuppliers = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://localhost:5000/api/inventory/suppliers', config);
+            const { data } = await axios.get('https://homecare.nidwa.com/api/inventory/suppliers', config);
             setSuppliers(data);
         } catch (err) { console.error(err); }
     };
@@ -24,7 +24,7 @@ const SupplierManagement = () => {
         setLoading(true);
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.post('https://lafoole.somsoftsystems.com/api/inventory/suppliers', formData, config);
+            await axios.post('https://homecare.nidwa.com/api/inventory/suppliers', formData, config);
             setFormData({ name: '', source: '', note: '' });
             fetchSuppliers();
         } catch (err) { alert(err.response?.data?.message || 'Failed'); }
@@ -83,18 +83,18 @@ const SupplierManagement = () => {
                         <History className="text-primary" />
                         Registered Suppliers
                     </h2>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="bg-slate-50 border-b border-slate-100">
+                    <div className="table-shell">
+                        <table className="data-table striped-table">
+                            <thead>
                                 <tr>
-                                    <th className="px-4 py-3 text-sm font-bold text-slate-600">Name</th>
-                                    <th className="px-4 py-3 text-sm font-bold text-slate-600">Source</th>
-                                    <th className="px-4 py-3 text-sm font-bold text-slate-600">Added Date</th>
+                                    <th>Name</th>
+                                    <th>Source</th>
+                                    <th>Added Date</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody>
                                 {suppliers.map(s => (
-                                    <tr key={s._id} className="hover:bg-slate-50 transition-colors">
+                                    <tr key={s._id}>
                                         <td className="px-4 py-4 font-semibold text-slate-800">{s.name}</td>
                                         <td className="px-4 py-4">
                                             <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-bold uppercase tracking-tight">{s.source}</span>
@@ -113,3 +113,4 @@ const SupplierManagement = () => {
 };
 
 export default SupplierManagement;
+

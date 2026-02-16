@@ -15,7 +15,7 @@ const LabDashboard = () => {
     const fetchDashboard = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('https://lafoole.somsoftsystems.com/api/lab/dashboard', config);
+            const { data } = await axios.get('https://homecare.nidwa.com/api/lab/dashboard', config);
             setStats(data);
         } catch (err) { console.error(err); }
         finally { setLoading(false); }
@@ -24,52 +24,47 @@ const LabDashboard = () => {
     if (loading) return <div className="flex items-center justify-center h-screen"><div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-700">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-purple-900 via-purple-800 to-purple-900 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
-                <div className="relative z-10">
-                    <h1 className="text-5xl font-black text-white tracking-tighter mb-2 uppercase italic flex items-center gap-4">
-                        <FlaskConical size={48} className="text-purple-400" /> Laboratory Dashboard
-                    </h1>
-                    <p className="text-purple-300 font-black text-sm uppercase tracking-[.3em]">Lab Test Management & Results</p>
-                </div>
+        <div className="page-section animate-in fade-in duration-700">
+            <div className="section-header">
+                <h1 className="section-title flex items-center gap-3">
+                    <FlaskConical size={30} className="text-primary" /> Laboratory Dashboard
+                </h1>
+                <p className="section-subtitle">Monitor test flow, turnaround, and result handover to doctors.</p>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-gradient-to-br from-blue-600 to-blue-700 text-white p-8 rounded-[2.5rem] shadow-2xl hover:scale-105 transition-transform cursor-pointer">
-                    <FlaskConical className="mb-4" size={40} />
-                    <p className="text-xs font-black text-blue-200 uppercase tracking-widest mb-2">Total Requests</p>
-                    <h3 className="text-5xl font-black tracking-tighter">{stats?.totalRequests || 0}</h3>
+            <div className="metrics-grid">
+                <div className="metric-card border-l-4 border-blue-500">
+                    <p className="metric-label">Total Requests</p>
+                    <h3 className="metric-value">{stats?.totalRequests || 0}</h3>
                 </div>
 
-                <div className="bg-gradient-to-br from-orange-600 to-orange-700 text-white p-8 rounded-[2.5rem] shadow-2xl hover:scale-105 transition-transform cursor-pointer"
-                    onClick={() => navigate('/lab/tests?status=Pending')}>
-                    <Clock className="mb-4" size={40} />
-                    <p className="text-xs font-black text-orange-200 uppercase tracking-widest mb-2">Pending Tests</p>
-                    <h3 className="text-5xl font-black tracking-tighter">{stats?.pendingRequests || 0}</h3>
+                <button
+                    className="metric-card border-l-4 border-amber-500 text-left"
+                    onClick={() => navigate('/lab/tests?status=Pending')}
+                >
+                    <p className="metric-label text-amber-700">Pending Tests</p>
+                    <h3 className="metric-value text-amber-700">{stats?.pendingRequests || 0}</h3>
+                </button>
+
+                <div className="metric-card border-l-4 border-sky-500">
+                    <p className="metric-label">In Progress</p>
+                    <h3 className="metric-value">{stats?.inProgressRequests || 0}</h3>
                 </div>
 
-                <div className="bg-gradient-to-br from-purple-600 to-purple-700 text-white p-8 rounded-[2.5rem] shadow-2xl hover:scale-105 transition-transform cursor-pointer">
-                    <TrendingUp className="mb-4" size={40} />
-                    <p className="text-xs font-black text-purple-200 uppercase tracking-widest mb-2">In Progress</p>
-                    <h3 className="text-5xl font-black tracking-tighter">{stats?.inProgressRequests || 0}</h3>
-                </div>
-
-                <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 text-white p-8 rounded-[2.5rem] shadow-2xl hover:scale-105 transition-transform cursor-pointer"
-                    onClick={() => navigate('/lab/tests?status=Completed')}>
-                    <CheckCircle className="mb-4" size={40} />
-                    <p className="text-xs font-black text-emerald-200 uppercase tracking-widest mb-2">Completed</p>
-                    <h3 className="text-5xl font-black tracking-tighter">{stats?.completedRequests || 0}</h3>
-                </div>
+                <button
+                    className="metric-card border-l-4 border-primary text-left"
+                    onClick={() => navigate('/lab/tests?status=Completed')}
+                >
+                    <p className="metric-label text-primary-dark">Completed</p>
+                    <h3 className="metric-value text-primary-dark">{stats?.completedRequests || 0}</h3>
+                </button>
             </div>
 
             {/* Today & Month Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white border-2 border-blue-100 p-8 rounded-[2.5rem] shadow-lg">
+                <div className="card border-l-4 border-blue-500">
                     <div className="flex items-center gap-4 mb-4">
-                        <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center">
+                        <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
                             <Calendar className="text-blue-600" size={32} />
                         </div>
                         <div>
@@ -80,13 +75,13 @@ const LabDashboard = () => {
                     <p className="text-xs text-slate-500 font-bold">Lab requests received today</p>
                 </div>
 
-                <div className="bg-white border-2 border-purple-100 p-8 rounded-[2.5rem] shadow-lg">
+                <div className="card border-l-4 border-primary">
                     <div className="flex items-center gap-4 mb-4">
-                        <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center">
-                            <FileText className="text-purple-600" size={32} />
+                        <div className="w-14 h-14 bg-primary-light rounded-xl flex items-center justify-center">
+                            <FileText className="text-primary-dark" size={32} />
                         </div>
                         <div>
-                            <h4 className="text-3xl font-black text-purple-600">{stats?.monthRequests || 0}</h4>
+                            <h4 className="text-3xl font-black text-primary-dark">{stats?.monthRequests || 0}</h4>
                             <p className="text-xs font-black text-slate-400 uppercase tracking-widest">This Month</p>
                         </div>
                     </div>
@@ -95,28 +90,28 @@ const LabDashboard = () => {
             </div>
 
             {/* Recent Requests */}
-            <div className="bg-white rounded-[2.5rem] shadow-lg border border-slate-100 overflow-hidden">
-                <div className="bg-slate-900 p-6 text-white">
+            <div className="card p-0 overflow-hidden">
+                <div className="border-b border-slate-200 bg-slate-50 p-6">
                     <h3 className="text-xl font-black flex items-center gap-3">
                         <FileText /> Recent Lab Requests
                     </h3>
-                    <p className="text-xs font-bold text-slate-400 mt-1 uppercase">Last 10 requests</p>
+                    <p className="text-xs font-bold text-slate-500 mt-1 uppercase">Last 10 requests</p>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-slate-50 border-b border-slate-100">
+                <div className="table-shell rounded-none border-0">
+                    <table className="data-table striped-table">
+                        <thead>
                             <tr>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Ticket #</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Doctor</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Tests</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
+                                <th>Ticket #</th>
+                                <th>Patient</th>
+                                <th>Doctor</th>
+                                <th>Tests</th>
+                                <th>Status</th>
+                                <th>Date</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50">
+                        <tbody>
                             {stats?.recentRequests?.map((req) => (
-                                <tr key={req._id} className="hover:bg-slate-50/50 transition-colors cursor-pointer"
+                                <tr key={req._id} className="cursor-pointer"
                                     onClick={() => navigate(`/lab/tests/${req._id}`)}>
                                     <td className="px-8 py-5">
                                         <span className="font-black text-purple-600 text-sm">{req.ticketNumber}</span>
@@ -159,29 +154,29 @@ const LabDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <button
                     onClick={() => navigate('/lab/patients')}
-                    className="bg-gradient-to-br from-blue-600 to-blue-700 text-white p-8 rounded-[2.5rem] shadow-2xl hover:scale-105 transition-transform text-left"
+                    className="card border-l-4 border-blue-500 text-left transition-transform hover:-translate-y-0.5"
                 >
-                    <FileText className="mb-4" size={40} />
-                    <h4 className="text-xl font-black uppercase">Register Patient</h4>
-                    <p className="text-sm font-bold text-blue-200 mt-2">Add new patient for lab tests</p>
+                    <FileText className="mb-3 text-blue-600" size={32} />
+                    <h4 className="text-lg font-bold">Register Patient</h4>
+                    <p className="text-sm text-slate-500 mt-1">Add a new patient for lab tests.</p>
                 </button>
 
                 <button
                     onClick={() => navigate('/lab/tests?status=Pending')}
-                    className="bg-gradient-to-br from-orange-600 to-orange-700 text-white p-8 rounded-[2.5rem] shadow-2xl hover:scale-105 transition-transform text-left"
+                    className="card border-l-4 border-amber-500 text-left transition-transform hover:-translate-y-0.5"
                 >
-                    <Clock className="mb-4" size={40} />
-                    <h4 className="text-xl font-black uppercase">Pending Tests</h4>
-                    <p className="text-sm font-bold text-orange-200 mt-2">View and process pending requests</p>
+                    <Clock className="mb-3 text-amber-600" size={32} />
+                    <h4 className="text-lg font-bold">Pending Tests</h4>
+                    <p className="text-sm text-slate-500 mt-1">View and process pending requests.</p>
                 </button>
 
                 <button
                     onClick={() => navigate('/lab/tests?status=Completed')}
-                    className="bg-gradient-to-br from-emerald-600 to-emerald-700 text-white p-8 rounded-[2.5rem] shadow-2xl hover:scale-105 transition-transform text-left"
+                    className="card border-l-4 border-primary text-left transition-transform hover:-translate-y-0.5"
                 >
-                    <CheckCircle className="mb-4" size={40} />
-                    <h4 className="text-xl font-black uppercase">Completed Results</h4>
-                    <p className="text-sm font-bold text-emerald-200 mt-2">View completed test results</p>
+                    <CheckCircle className="mb-3 text-primary" size={32} />
+                    <h4 className="text-lg font-bold">Completed Results</h4>
+                    <p className="text-sm text-slate-500 mt-1">Open finalized test results.</p>
                 </button>
             </div>
         </div>
@@ -189,3 +184,4 @@ const LabDashboard = () => {
 };
 
 export default LabDashboard;
+

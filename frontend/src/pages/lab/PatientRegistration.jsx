@@ -21,7 +21,7 @@ const PatientRegistration = () => {
     const fetchPatients = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('https://lafoole.somsoftsystems.com/api/doctor/patients', config);
+            const { data } = await axios.get('https://homecare.nidwa.com/api/doctor/patients', config);
             setPatients(data);
         } catch (err) { console.error(err); }
     };
@@ -30,7 +30,7 @@ const PatientRegistration = () => {
         e.preventDefault();
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.post('https://lafoole.somsoftsystems.com/api/doctor/patients', formData, config);
+            await axios.post('https://homecare.nidwa.com/api/doctor/patients', formData, config);
             setShowForm(false);
             setFormData({ name: '', age: '', sex: 'Male', phone: '', address: '' });
             fetchPatients();
@@ -44,61 +44,52 @@ const PatientRegistration = () => {
     );
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-700">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"></div>
-                <div className="relative z-10 flex justify-between items-center">
-                    <div>
-                        <h1 className="text-5xl font-black text-white tracking-tighter mb-2 uppercase italic flex items-center gap-4">
-                            <Users size={48} className="text-blue-400" /> Patient Registration
-                        </h1>
-                        <p className="text-blue-300 font-black text-sm uppercase tracking-[.3em]">Register New Patients for Lab Tests</p>
-                    </div>
-                    <button
-                        onClick={() => setShowForm(true)}
-                        className="bg-blue-500 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-wider shadow-2xl shadow-blue-500/30 hover:scale-105 transition-transform flex items-center gap-3"
-                    >
-                        <UserPlus size={24} /> Register Patient
-                    </button>
+        <div className="page-section animate-in fade-in duration-700">
+            <div className="section-header flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h1 className="section-title flex items-center gap-3">
+                        <Users size={30} className="text-primary" /> Patient Registration
+                    </h1>
+                    <p className="section-subtitle">Register new patients for laboratory tests.</p>
                 </div>
+                <button onClick={() => setShowForm(true)} className="btn-primary uppercase tracking-wide">
+                    <UserPlus size={20} /> Register Patient
+                </button>
             </div>
 
-            {/* Search */}
-            <div className="bg-white p-6 rounded-[2rem] shadow-lg border border-slate-100">
+            <div className="card">
                 <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                     <input
                         type="text"
                         placeholder="Search by Patient ID or Name..."
-                        className="w-full pl-12 pr-6 py-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 font-bold"
+                        className="w-full pl-12"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                     />
                 </div>
             </div>
 
-            {/* Patient List */}
-            <div className="bg-white rounded-[2.5rem] shadow-lg border border-slate-100 overflow-hidden">
-                <div className="bg-slate-900 p-6 text-white">
+            <div className="card p-0 overflow-hidden">
+                <div className="border-b border-slate-200 bg-slate-50 p-6">
                     <h3 className="text-xl font-black flex items-center gap-3">
                         <Users /> Registered Patients ({filtered.length})
                     </h3>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-slate-50 border-b border-slate-100">
+                <div className="table-shell rounded-none border-0">
+                    <table className="data-table striped-table">
+                        <thead>
                             <tr>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient ID</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Age & Sex</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Registered</th>
+                                <th>Patient ID</th>
+                                <th>Name</th>
+                                <th>Age and Sex</th>
+                                <th>Contact</th>
+                                <th>Registered</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50">
+                        <tbody>
                             {filtered.map((patient) => (
-                                <tr key={patient._id} className="hover:bg-slate-50/50 transition-colors">
+                                <tr key={patient._id}>
                                     <td className="px-8 py-5">
                                         <span className="font-black text-blue-600 text-sm">{patient.patientId}</span>
                                     </td>
@@ -134,20 +125,19 @@ const PatientRegistration = () => {
                 </div>
             </div>
 
-            {/* Registration Modal */}
             {showForm && (
                 <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
-                    <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 shadow-2xl animate-in zoom-in duration-300">
-                        <h3 className="text-3xl font-black text-slate-800 mb-6 uppercase italic flex items-center gap-3">
-                            <UserPlus className="text-blue-600" /> Register New Patient
+                    <div className="card w-full max-w-2xl animate-in zoom-in duration-300">
+                        <h3 className="text-2xl font-black text-slate-800 mb-5 uppercase tracking-wide flex items-center gap-3">
+                            <UserPlus className="text-primary" /> Register New Patient
                         </h3>
                         <form onSubmit={handleSubmit} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="form-grid">
                                 <div className="col-span-2">
                                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Full Name *</label>
                                     <input
                                         type="text"
-                                        className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold text-lg"
+                                        className="input-field"
                                         value={formData.name}
                                         onChange={e => setFormData({ ...formData, name: e.target.value })}
                                         required
@@ -157,7 +147,7 @@ const PatientRegistration = () => {
                                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Age *</label>
                                     <input
                                         type="number"
-                                        className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold text-lg"
+                                        className="input-field"
                                         value={formData.age}
                                         onChange={e => setFormData({ ...formData, age: e.target.value })}
                                         required
@@ -166,7 +156,7 @@ const PatientRegistration = () => {
                                 <div>
                                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Sex *</label>
                                     <select
-                                        className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold text-lg"
+                                        className="input-field"
                                         value={formData.sex}
                                         onChange={e => setFormData({ ...formData, sex: e.target.value })}
                                     >
@@ -178,7 +168,7 @@ const PatientRegistration = () => {
                                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Phone Number</label>
                                     <input
                                         type="tel"
-                                        className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold"
+                                        className="input-field"
                                         value={formData.phone}
                                         onChange={e => setFormData({ ...formData, phone: e.target.value })}
                                     />
@@ -187,7 +177,7 @@ const PatientRegistration = () => {
                                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Address</label>
                                     <input
                                         type="text"
-                                        className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold"
+                                        className="input-field"
                                         value={formData.address}
                                         onChange={e => setFormData({ ...formData, address: e.target.value })}
                                     />
@@ -197,13 +187,13 @@ const PatientRegistration = () => {
                                 <button
                                     type="button"
                                     onClick={() => setShowForm(false)}
-                                    className="flex-1 bg-slate-100 text-slate-600 font-black py-4 rounded-2xl uppercase"
+                                    className="btn-secondary flex-1 uppercase"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 bg-blue-600 text-white font-black py-4 rounded-2xl uppercase shadow-2xl shadow-blue-600/30 flex items-center justify-center gap-2"
+                                    className="btn-primary flex-1 uppercase"
                                 >
                                     <UserPlus size={20} /> Register Patient
                                 </button>
@@ -217,3 +207,4 @@ const PatientRegistration = () => {
 };
 
 export default PatientRegistration;
+

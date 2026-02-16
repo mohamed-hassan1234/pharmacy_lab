@@ -15,10 +15,14 @@ app.use(express.json());
 app.use(
   cors({
     origin: [
+      "https://homecare.nidwa.com",
+      "https://www.homecare.nidwa.com",
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
       "https://lafoole.somsoftsystems.com",
       "https://www.lafoole.somsoftsystems.com"
     ],
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true
   })
 );
@@ -33,6 +37,7 @@ app.use('/api/doctor', require('./routes/doctorRoutes'));
 app.use('/api/lab', require('./routes/labRoutes'));
 app.use('/api/inventory', require('./routes/inventoryRoutes'));
 app.use('/api/profile', require('./routes/profileRoutes'));
+app.use('/api/assistant', require('./routes/assistantRoutes'));
 
 // Error Mapping
 app.use((err, req, res, next) => {
@@ -43,7 +48,7 @@ app.use((err, req, res, next) => {
     });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5010;
 app.listen(PORT, () => {
     console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 });

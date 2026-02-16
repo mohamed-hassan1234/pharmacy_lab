@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const { protect, authorize } = require('../middleware/auth');
 const Patient = require('../models/Patient');
 const LabRequest = require('../models/LabRequest');
@@ -150,10 +151,24 @@ const Prescription = require('../models/Prescription');
 // @desc    Search Medicines for Prescription
 router.get('/medicines/search', protect, authorize('Doctor', 'Admin'), async (req, res) => {
     try {
-        const { query } = req.query;
-        const medicines = await Medicine.find({
-            name: { $regex: query, $options: 'i' }
-        }).limit(20);
+        const query = (req.query.query || '').trim();
+        const requestedLimit = Number.parseInt(req.query.limit, 10);
+        const limit = Number.isFinite(requestedLimit)
+            ? Math.min(Math.max(requestedLimit, 1), 200)
+            : 100;
+
+        const filter = { totalUnitsInStock: { $gt: 0 } };
+        if (query) {
+            const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            filter.$or = [
+                { name: { $regex: escapedQuery, $options: 'i' } },
+                { category: { $regex: escapedQuery, $options: 'i' } }
+            ];
+        }
+
+        const medicines = await Medicine.find(filter)
+            .sort(query ? { totalUnitsInStock: -1, name: 1 } : { name: 1 })
+            .limit(limit);
         res.json(medicines);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -163,14 +178,34 @@ router.get('/medicines/search', protect, authorize('Doctor', 'Admin'), async (re
 // @desc    Create Final Prescription
 router.post('/prescriptions', protect, authorize('Doctor', 'Admin'), async (req, res) => {
     try {
-        const { patientId, diagnosis, physicalExamination, medicines } = req.body;
+        const { patientId, diagnosis, physicalExamination, medicines = [] } = req.body;
+
+        const normalizedMedicines = [];
+        for (const item of medicines) {
+            let medicineDoc = null;
+
+            if (item?.medicineId && mongoose.Types.ObjectId.isValid(item.medicineId)) {
+                medicineDoc = await Medicine.findById(item.medicineId).select('name');
+            } else if (item?.name) {
+                medicineDoc = await Medicine.findOne({
+                    name: { $regex: `^${item.name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' }
+                }).select('name');
+            }
+
+            normalizedMedicines.push({
+                medicineId: medicineDoc?._id || undefined,
+                name: medicineDoc?.name || item?.name || '',
+                dosage: item?.dosage || '',
+                duration: item?.duration || ''
+            });
+        }
 
         const prescription = await Prescription.create({
             patientId,
             doctorId: req.user._id,
             diagnosis,
             physicalExamination,
-            medicines,
+            medicines: normalizedMedicines,
             status: 'Issued'
         });
 

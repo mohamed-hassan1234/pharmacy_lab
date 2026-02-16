@@ -3,54 +3,333 @@
 @theme {
   --color-primary: #1cc588;
   --color-primary-dark: #16a372;
-  --color-primary-light: #d1fae5;
+  --color-primary-light: #e6f9f1;
   --color-secondary: #0ea5e9;
-  --color-medical-bg: #f8fafc;
+  --color-medical-bg: #f3f5f9;
+  --color-medical-surface: #ffffff;
+  --color-medical-surface-muted: #f8fafc;
   --color-medical-text: #1e293b;
   --color-medical-muted: #64748b;
+  --color-sidebar-bg: #0f172a;
+  --color-sidebar-border: #1e293b;
+  --color-sidebar-text: #cbd5e1;
 
   --font-sans: "Inter", "system-ui", "sans-serif";
 
   --shadow-premium: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 10px -2px rgba(0, 0, 0, 0.04);
+  --shadow-shell: 0 16px 38px -24px rgba(15, 23, 42, 0.45);
+  --shadow-card: 0 10px 28px -22px rgba(15, 23, 42, 0.55);
 }
 
 @layer base {
+  * {
+    box-sizing: border-box;
+  }
+
   body {
+    margin: 0;
+    min-height: 100vh;
     @apply bg-medical-bg text-medical-text font-sans antialiased;
+  }
+
+  #root {
+    min-height: 100vh;
   }
 }
 
 @layer components {
-  .btn-primary {
-    @apply bg-primary hover:bg-primary-dark text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-sm;
+  .app-shell {
+    @apply min-h-screen bg-medical-bg;
   }
 
-  .card {
-    @apply bg-white rounded-xl shadow-premium p-6 border border-slate-100;
+  .app-sidebar {
+    @apply fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-sidebar-border bg-sidebar-bg text-sidebar-text transition-transform duration-300 lg:translate-x-0;
   }
 
-  .input-field {
-    @apply w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all duration-200;
+  .app-sidebar-brand {
+    @apply flex items-center gap-3 border-b border-sidebar-border px-5 py-5;
+  }
+
+  .app-sidebar-brand-badge {
+    @apply flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white shadow-lg shadow-primary/20;
+  }
+
+  .app-sidebar-section {
+    @apply px-4 py-3;
+  }
+
+  .app-sidebar-label {
+    @apply px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400;
   }
 
   .sidebar-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-medical-muted hover:bg-primary/10 hover:text-primary transition-all duration-200 cursor-pointer;
+    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-sidebar-text/85 transition-all duration-200 hover:bg-white/5 hover:text-white;
   }
 
   .sidebar-item-active {
-    @apply flex items-center gap-3 px-4 py-3 rounded-lg bg-primary text-white shadow-lg shadow-primary/20 transition-all duration-200;
+    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white bg-primary/20 border border-primary/30 shadow-lg shadow-primary/20;
+  }
+
+  .app-main {
+    @apply min-h-screen lg:ml-72;
+  }
+
+  .app-topbar {
+    @apply sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur-sm sm:px-6;
+  }
+
+  .topbar-search {
+    @apply flex min-w-[15rem] max-w-xl flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600;
+  }
+
+  .topbar-chip {
+    @apply inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600;
+  }
+
+  .app-content {
+    @apply p-4 sm:p-6;
+  }
+
+  .page-section {
+    @apply space-y-6;
+  }
+
+  .section-header {
+    @apply rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-card sm:px-6;
+  }
+
+  .section-title {
+    @apply text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl;
+  }
+
+  .section-subtitle {
+    @apply mt-1 text-sm text-medical-muted;
+  }
+
+  .metrics-grid {
+    @apply grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4;
+  }
+
+  .metric-card {
+    @apply rounded-2xl border border-slate-200 bg-white p-5 shadow-card;
+  }
+
+  .metric-label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-medical-muted;
+  }
+
+  .metric-value {
+    @apply mt-2 text-3xl font-bold tracking-tight text-slate-900;
+  }
+
+  .metric-hint {
+    @apply mt-1 text-xs text-medical-muted;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:bg-primary-dark active:scale-[0.99] shadow-md shadow-primary/25 disabled:opacity-60 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 font-medium text-slate-600 transition-colors hover:bg-slate-50;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 font-semibold text-white transition-colors hover:bg-red-700;
+  }
+
+  .card {
+    @apply rounded-2xl border border-slate-200 bg-white p-5 shadow-card sm:p-6;
+  }
+
+  .input-field {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition-all duration-150 placeholder:text-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/20;
+  }
+
+  .table-shell {
+    @apply overflow-x-auto rounded-2xl border border-slate-200;
+  }
+
+  .data-table {
+    @apply w-full min-w-[720px] border-collapse text-left;
+  }
+
+  .data-table thead th {
+    @apply border-b border-slate-200 bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500;
+  }
+
+  .data-table tbody td {
+    @apply px-4 py-3 text-sm text-slate-700;
+  }
+
+  .striped-table tbody tr:nth-child(odd) {
+    @apply bg-slate-100/70;
+  }
+
+  .striped-table tbody tr:nth-child(even) {
+    @apply bg-white;
+  }
+
+  .striped-table tbody tr:hover {
+    @apply bg-slate-50;
+  }
+
+  .status-chip {
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide;
+  }
+
+  .chart-card {
+    @apply rounded-2xl border border-slate-200 bg-white p-5 shadow-card;
+  }
+
+  .chart-title {
+    @apply text-base font-semibold text-slate-800;
+  }
+
+  .chart-subtitle {
+    @apply text-xs text-medical-muted;
+  }
+
+  .form-grid {
+    @apply grid grid-cols-1 gap-4 md:grid-cols-2;
+  }
+
+  .form-template {
+    @apply rounded-xl border border-slate-200 bg-white p-5;
+  }
+
+  .form-template-title {
+    @apply text-lg font-semibold text-slate-900;
+  }
+
+  .form-template-subtitle {
+    @apply mt-1 text-sm text-slate-500;
+  }
+
+  .form-template-row {
+    @apply mt-4 space-y-4;
+  }
+
+  .form-template label {
+    @apply mb-1.5 block text-sm font-medium normal-case tracking-normal text-slate-700;
+  }
+
+  .stat-ring {
+    --ring-value: 50%;
+    --ring-color: #1cc588;
+    @apply mx-auto h-36 w-36 rounded-full;
+    background: conic-gradient(var(--ring-color) var(--ring-value), #e5e7eb var(--ring-value));
+  }
+
+  .stat-ring-center {
+    @apply m-[9px] flex h-[126px] w-[126px] items-center justify-center rounded-full bg-white;
+  }
+
+  .dashboard-chart-card {
+    @apply rounded-2xl border border-slate-200 bg-white p-6 shadow-card;
+  }
+
+  .app-content input[type="text"],
+  .app-content input[type="email"],
+  .app-content input[type="number"],
+  .app-content input[type="password"],
+  .app-content input[type="tel"],
+  .app-content input[type="date"],
+  .app-content textarea,
+  .app-content select {
+    @apply rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition-all duration-150 placeholder:text-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/20;
+  }
+
+  .app-content textarea {
+    @apply min-h-24;
+  }
+
+  .app-content label {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500;
+  }
+
+  .app-overlay {
+    @apply fixed inset-0 z-30 bg-slate-900/55 backdrop-blur-[1px] transition-opacity duration-300 lg:hidden;
+  }
+
+  .ai-agent-anchor {
+    @apply fixed bottom-4 right-4 z-[70] flex flex-col items-end;
+  }
+
+  .ai-agent-panel {
+    @apply mb-3 flex w-[calc(100vw-1.5rem)] max-w-[26rem] flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_30px_70px_-35px_rgba(15,23,42,0.65)];
+    max-height: min(40rem, calc(100vh - 5rem));
+  }
+
+  .ai-agent-header {
+    @apply flex items-center justify-between border-b border-slate-200/70 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-4 py-3 text-white;
+  }
+
+  .ai-agent-icon-wrap {
+    @apply flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-white shadow-lg shadow-primary/40;
+  }
+
+  .ai-agent-lang {
+    @apply flex items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs text-slate-100 backdrop-blur-sm;
+  }
+
+  .ai-agent-lang select {
+    @apply border-none bg-transparent p-0 text-xs font-semibold text-white focus:ring-0;
+  }
+
+  .ai-agent-messages {
+    @apply flex-1 space-y-2.5 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.08),_transparent_48%)] px-3 py-3.5;
+    min-height: 16rem;
+  }
+
+  .ai-msg {
+    @apply w-fit max-w-[90%] rounded-2xl px-3 py-2.5 text-sm leading-relaxed;
+  }
+
+  .ai-msg-assistant {
+    @apply border border-slate-200 bg-white text-slate-700 shadow-sm;
+  }
+
+  .ai-msg-user {
+    @apply ml-auto bg-gradient-to-r from-primary to-emerald-500 text-white shadow-md shadow-primary/25;
+  }
+
+  .ai-agent-suggestions {
+    @apply flex flex-wrap gap-2 border-t border-slate-200/80 bg-slate-50/80 px-3 py-2.5;
+  }
+
+  .ai-suggestion-chip {
+    @apply rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 transition-all hover:-translate-y-px hover:border-primary/40 hover:text-primary;
+  }
+
+  .ai-agent-input-row {
+    @apply flex items-center gap-2 border-t border-slate-200 bg-white px-3 py-3;
+  }
+
+  .ai-agent-input {
+    @apply w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20;
+  }
+
+  .ai-agent-toggle {
+    @apply inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-slate-900 via-slate-800 to-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xl shadow-slate-900/30 transition-all hover:-translate-y-0.5;
+  }
+
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
   }
 }
 
 /* Scrollbar Styles */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-slate-100;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 rounded-full hover:bg-slate-400;
+  @apply rounded-full bg-slate-300 hover:bg-slate-400;
 }

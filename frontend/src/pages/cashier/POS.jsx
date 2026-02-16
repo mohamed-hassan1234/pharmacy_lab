@@ -19,6 +19,18 @@ const PharmacyPOS = () => {
     const [showPrescriptions, setShowPrescriptions] = useState(false);
     const [selectedPrescriptionId, setSelectedPrescriptionId] = useState(null);
 
+    const normalizeText = (value) => (value || '').toString().trim().toLowerCase();
+    const parsePrescribedQuantity = (dosage) => {
+        const text = (dosage || '').toString().toLowerCase();
+        const boxMatch = text.match(/(\d+)\s*box/);
+        const pillMatch = text.match(/(\d+)\s*pill/);
+        const boxes = boxMatch ? Number.parseInt(boxMatch[1], 10) : 0;
+        const pills = pillMatch ? Number.parseInt(pillMatch[1], 10) : 0;
+        return {
+            boxes: Number.isFinite(boxes) ? boxes : 0,
+            pills: Number.isFinite(pills) ? pills : 0
+        };
+    };
 
 
     const SOS_TO_USD_DISPLAY = 28000; // Kept for display purposes, actual conversion uses utility
@@ -33,7 +45,7 @@ const PharmacyPOS = () => {
     const fetchMedicines = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://localhost:5000/api/inventory/medicines', config);
+            const { data } = await axios.get('https://homecare.nidwa.com/api/inventory/medicines', config);
             setMedicines(data);
         } catch (err) { console.error(err); }
     };
@@ -41,7 +53,7 @@ const PharmacyPOS = () => {
     const fetchCustomers = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://localhost:5000/api/cashier/customers', config);
+            const { data } = await axios.get('https://homecare.nidwa.com/api/cashier/customers', config);
             setCustomers(data);
         } catch (err) { console.error(err); }
     };
@@ -49,20 +61,22 @@ const PharmacyPOS = () => {
     const fetchPrescriptions = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://localhost:5000/api/cashier/prescriptions', config);
+            const { data } = await axios.get('https://homecare.nidwa.com/api/cashier/prescriptions', config);
             setPrescriptions(data);
         } catch (err) { console.error(err); }
     };
 
 
-    const addToCart = (med, sellType) => {
+    const addToCart = (med, sellType, qty = 1) => {
+        const quantityToAdd = Math.max(1, Number.parseInt(qty, 10) || 1);
         const cartId = `${med._id}-${sellType}`;
         const existing = cart.find(item => item.cartId === cartId);
 
         const price = sellType === 'BOX' ? (med.sellingPricePerBox || med.sellingPricePerUnit * med.unitsPerBox) : med.sellingPricePerUnit;
 
         if (existing) {
-            setCart(cart.map(item => item.cartId === cartId ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * price } : item));
+            const nextQty = item => item.quantity + quantityToAdd;
+            setCart(cart.map(item => item.cartId === cartId ? { ...item, quantity: nextQty(item), total: nextQty(item) * price } : item));
         } else {
             setCart([...cart, {
                 cartId,
@@ -70,8 +84,8 @@ const PharmacyPOS = () => {
                 name: med.name,
                 sellType,
                 price,
-                quantity: 1,
-                total: price
+                quantity: quantityToAdd,
+                total: quantityToAdd * price
             }]);
         }
     };
@@ -83,7 +97,7 @@ const PharmacyPOS = () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
             const total = calculateTotal();
-            const { data } = await axios.post('https://lafoole.somsoftsystems.com/api/cashier/sales', {
+            const { data } = await axios.post('https://homecare.nidwa.com/api/cashier/sales', {
                 items: cart,
                 customerName: selectedCustomerId ? customers.find(c => c._id === selectedCustomerId)?.name : customerName,
                 customerId: selectedCustomerId || null,
@@ -95,6 +109,7 @@ const PharmacyPOS = () => {
             setSaleSuccess(data);
             setCart([]);
             setSelectedCustomerId('');
+            setCustomerName('Walk-in Customer');
             setPaidAmount(0);
             setSelectedPrescriptionId(null);
             fetchMedicines();
@@ -105,7 +120,12 @@ const PharmacyPOS = () => {
     };
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="space-y-6">
+            <div className="section-header">
+                <h1 className="section-title">Point of Sale</h1>
+                <p className="section-subtitle">Sell medicines by unit or box, attach prescriptions, and complete payment flow.</p>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* inventory side */}
             <div className="lg:col-span-2 space-y-6">
                 <div className="card border-2 border-slate-100 bg-white">
@@ -139,20 +159,36 @@ const PharmacyPOS = () => {
                                         <div>
                                             <p className="font-black text-slate-800 uppercase italic">{p.patientId?.name || 'Unknown'}</p>
                                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{p.diagnosis}</p>
+                                            <p className="text-[10px] text-slate-500 font-bold mt-1">Notes: {p.physicalExamination || 'No physical notes'}</p>
                                             <p className="text-[10px] text-orange-600 font-bold mt-1 uppercase italic">By Dr. {p.doctorId?.name}</p>
+                                            <p className="text-[10px] text-slate-500 font-bold mt-1">
+                                                Medicines: {(p.medicines || []).map(m => `${m.name} (${m.dosage || '-'}, ${m.duration || '-'})`).filter(Boolean).join(' | ') || 'None'}
+                                            </p>
                                         </div>
                                         <button
                                             onClick={() => {
                                                 // Load medicines from prescription into cart
                                                 setSelectedPrescriptionId(p._id);
+                                                setSelectedCustomerId('');
+                                                setCustomerName(p.patientId?.name || 'Walk-in Customer');
+                                                const missingMeds = [];
                                                 p.medicines.forEach(pm => {
-                                                    const med = medicines.find(m => m.name.toLowerCase() === pm.name.toLowerCase());
+                                                    const med = medicines.find(m => pm.medicineId && m._id?.toString() === pm.medicineId?.toString()) ||
+                                                        medicines.find(m => normalizeText(m.name) === normalizeText(pm.name));
+
                                                     if (med) {
-                                                        addToCart(med, 'UNIT');
+                                                        const prescribed = parsePrescribedQuantity(pm.dosage);
+                                                        if (prescribed.boxes > 0) addToCart(med, 'BOX', prescribed.boxes);
+                                                        if (prescribed.pills > 0) addToCart(med, 'UNIT', prescribed.pills);
+                                                        if (prescribed.boxes === 0 && prescribed.pills === 0) addToCart(med, 'UNIT', 1);
                                                     } else {
-                                                        console.warn(`Medicine ${pm.name} not found in inventory`);
+                                                        missingMeds.push(pm.name || 'Unknown medicine');
                                                     }
                                                 });
+
+                                                if (missingMeds.length > 0) {
+                                                    alert(`These prescribed medicines are not available in inventory: ${missingMeds.join(', ')}`);
+                                                }
                                                 setShowPrescriptions(false);
                                             }}
                                             className="px-4 py-2 bg-orange-600 text-white rounded-xl font-black text-[10px] uppercase hover:bg-orange-700 shadow-lg shadow-orange-600/30"
@@ -314,8 +350,10 @@ const PharmacyPOS = () => {
                     </div>
                 )}
             </div>
+            </div>
         </div>
     );
 };
 
 export default PharmacyPOS;
+

@@ -5,6 +5,8 @@ const saleSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now },
     cashierId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' }, // Optional link to registered customer
+    prescriptionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Prescription' }, // Optional link to doctor prescription
+    labRequestId: { type: mongoose.Schema.Types.ObjectId, ref: 'LabRequest' }, // Optional link to doctor note/consultation
     customerName: { type: String, required: true },
     items: [{
         medicineId: { type: mongoose.Schema.Types.ObjectId, ref: 'Medicine' },

@@ -37,7 +37,7 @@ const LabTests = () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
 
-            let url = 'https://lafoole.somsoftsystems.com/api/lab/requests?isPaid=true';
+            let url = 'https://homecare.nidwa.com/api/lab/requests?isPaid=true';
             if (statusFilter !== 'All') {
                 url += `&status=${statusFilter}`;
             }
@@ -63,7 +63,7 @@ const LabTests = () => {
     const handleSaveResults = async (silent = false) => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`https://lafoole.somsoftsystems.com/api/lab/requests/${selectedRequest._id}/results`, { results }, config);
+            await axios.patch(`https://homecare.nidwa.com/api/lab/requests/${selectedRequest._id}/results`, { results }, config);
             if (!silent) alert('Results saved successfully!');
             setShowResults(false);
             fetchRequests();
@@ -77,7 +77,7 @@ const LabTests = () => {
     const handleComplete = async (id) => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`https://lafoole.somsoftsystems.com/api/lab/requests/${id}/complete`, {}, config);
+            await axios.patch(`https://homecare.nidwa.com/api/lab/requests/${id}/complete`, {}, config);
             alert('Patient returned to Doctor successfully!');
             fetchRequests();
         } catch (err) { alert(err.response?.data?.message || 'Error completing request'); }
@@ -117,7 +117,7 @@ const LabTests = () => {
     const handlePrintResults = async (request) => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`https://lafoole.somsoftsystems.com/api/lab/requests/${request._id}/print`, {}, config);
+            await axios.patch(`https://homecare.nidwa.com/api/lab/requests/${request._id}/print`, {}, config);
 
             const printWindow = window.open('', '', 'width=800,height=1000');
             printWindow.document.write(`
@@ -217,35 +217,35 @@ const LabTests = () => {
     );
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-700">
-            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-10 rounded-[3rem] shadow-2xl">
-                <h1 className="text-5xl font-black text-white tracking-tighter mb-2 uppercase italic flex items-center gap-4">
-                    <FlaskConical size={48} className="text-emerald-400" /> Consultation & Lab Requests
+        <div className="page-section animate-in fade-in duration-700">
+            <div className="section-header">
+                <h1 className="section-title flex items-center gap-3">
+                    <FlaskConical size={30} className="text-primary" /> Consultation and Lab Requests
                 </h1>
-                <p className="text-slate-300 font-black text-sm uppercase tracking-[.3em]">Process Patient Results & Send to Doctor</p>
+                <p className="section-subtitle">Process patient results and send finalized reports to the doctor.</p>
             </div>
 
 
             {/* Filters */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-[2rem] shadow-lg border border-slate-100">
+                <div className="card">
                     <div className="relative">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                         <input
                             type="text"
                             placeholder="Search by ticket or patient name..."
-                            className="w-full pl-12 pr-6 py-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-purple-500 font-bold"
+                            className="w-full pl-12"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                         />
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-[2rem] shadow-lg border border-slate-100">
+                <div className="card">
                     <div className="relative">
                         <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                         <select
-                            className="w-full pl-12 pr-6 py-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-purple-500 font-bold appearance-none"
+                            className="w-full pl-12 appearance-none"
                             value={statusFilter}
                             onChange={e => setStatusFilter(e.target.value)}
                         >
@@ -262,26 +262,26 @@ const LabTests = () => {
             </div>
 
             {/* Requests List */}
-            <div className="bg-white rounded-[2.5rem] shadow-lg border border-slate-100 overflow-hidden">
-                <div className="bg-slate-900 p-6 text-white">
+            <div className="card p-0 overflow-hidden">
+                <div className="border-b border-slate-200 bg-slate-50 p-6">
                     <h3 className="text-xl font-black flex items-center gap-3">
                         <FileText /> Lab Requests ({filtered.length})
                     </h3>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-slate-50 border-b border-slate-100">
+                <div className="table-shell rounded-none border-0">
+                    <table className="data-table striped-table">
+                        <thead>
                             <tr>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Ticket</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Tests</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Actions</th>
+                                <th>Ticket</th>
+                                <th>Patient</th>
+                                <th>Tests</th>
+                                <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50">
+                        <tbody>
                             {filtered.map((req) => (
-                                <tr key={req._id} className="hover:bg-slate-50/50 transition-colors">
+                                <tr key={req._id}>
                                     <td className="px-8 py-5">
                                         <span className="font-black text-purple-600">{req.ticketNumber}</span>
                                         <p className="text-xs text-slate-400 font-bold">{new Date(req.createdAt).toLocaleDateString()}</p>
@@ -560,3 +560,4 @@ const LabTests = () => {
 };
 
 export default LabTests;
+

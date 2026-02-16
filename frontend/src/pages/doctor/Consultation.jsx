@@ -16,6 +16,19 @@ const DoctorConsultation = () => {
     const [diagnosis, setDiagnosis] = useState('');
     const [physicalExam, setPhysicalExam] = useState('');
 
+    const formatMedicineStock = (medicine) => {
+        const unitsPerBox = Number(medicine?.unitsPerBox) || 1;
+        const totalUnitsInStock = Number(medicine?.totalUnitsInStock) || 0;
+        const boxes = Math.floor(totalUnitsInStock / unitsPerBox);
+        const pills = totalUnitsInStock % unitsPerBox;
+        return { boxes, pills };
+    };
+
+    const buildDispenseText = (boxes, pills) => {
+        const boxLabel = boxes === 1 ? 'box' : 'boxes';
+        const pillLabel = pills === 1 ? 'pill' : 'pills';
+        return `${boxes} ${boxLabel} + ${pills} ${pillLabel}`;
+    };
 
 
     useEffect(() => {
@@ -32,11 +45,8 @@ const DoctorConsultation = () => {
             const userObj = JSON.parse(userStr);
             const config = { headers: { Authorization: `Bearer ${userObj.token}` } };
 
-            const { data } = await axios.get('https://lafoole.somsoftsystems.com/api/lab/requests', config);
-
-            // Filter to show only this doctor's requests with safety check
-            const myRequests = data.filter(req => req.doctorId?._id === userObj.user?._id);
-            setLabRequests(myRequests);
+            const { data } = await axios.get('https://homecare.nidwa.com/api/lab/requests', config);
+            setLabRequests(Array.isArray(data) ? data : []);
         } catch (err) { console.error(err); }
     };
 
@@ -44,7 +54,7 @@ const DoctorConsultation = () => {
     const handleViewResults = async (request) => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get(`https://lafoole.somsoftsystems.com/api/lab/requests/${request._id}`, config);
+            const { data } = await axios.get(`https://homecare.nidwa.com/api/lab/requests/${request._id}`, config);
             setSelectedRequest(data);
             setConclusion(data.doctorConclusion || '');
             setShowResults(true);
@@ -59,58 +69,122 @@ const DoctorConsultation = () => {
     };
 
 
-    const handleSearchMedicine = async (query) => {
-        setMedicineSearch(query);
-        if (query.length < 2) return setFoundMedicines([]);
+    const fetchAvailableMedicines = async (query = '') => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get(`https://lafoole.somsoftsystems.com/api/doctor/medicines/search?query=${query}`, config);
-            setFoundMedicines(data);
+            const { data } = await axios.get(`https://homecare.nidwa.com/api/doctor/medicines/search?query=${encodeURIComponent(query)}&limit=100`, config);
+            setFoundMedicines(Array.isArray(data) ? data : []);
         } catch (err) { console.error(err); }
     };
 
+    const handleSearchMedicine = async (query) => {
+        setMedicineSearch(query);
+        await fetchAvailableMedicines(query);
+    };
+
+    useEffect(() => {
+        if (showPrescriptionForm) {
+            fetchAvailableMedicines('');
+        } else {
+            setFoundMedicines([]);
+            setMedicineSearch('');
+        }
+    }, [showPrescriptionForm]);
+
     const addMedicine = (med) => {
         if (prescribedMedicines.find(m => m.medicineId === med._id)) return;
+        const unitsPerBox = Number(med.unitsPerBox) || 1;
+        const totalUnitsInStock = Number(med.totalUnitsInStock) || 0;
         setPrescribedMedicines([...prescribedMedicines, {
             medicineId: med._id,
             name: med.name,
-            dosage: '',
+            unitsPerBox,
+            totalUnitsInStock,
+            requestedBoxes: 0,
+            requestedPills: 0,
+            dosage: buildDispenseText(0, 0),
             duration: ''
         }]);
-        setFoundMedicines([]);
         setMedicineSearch('');
+    };
+
+    const updateRequestedQuantity = (index, field, rawValue) => {
+        const parsedValue = Number.parseInt(rawValue, 10);
+        const safeValue = Number.isNaN(parsedValue) ? 0 : Math.max(0, parsedValue);
+
+        setPrescribedMedicines((prev) => prev.map((item, i) => {
+            if (i !== index) return item;
+
+            const unitsPerBox = Number(item.unitsPerBox) || 1;
+            const totalUnitsInStock = Number(item.totalUnitsInStock) || 0;
+            const maxBoxes = Math.floor(totalUnitsInStock / unitsPerBox);
+
+            let requestedBoxes = Number(item.requestedBoxes) || 0;
+            let requestedPills = Number(item.requestedPills) || 0;
+
+            if (field === 'requestedBoxes') {
+                requestedBoxes = Math.min(safeValue, maxBoxes);
+            } else {
+                requestedPills = safeValue;
+            }
+
+            const remainingUnitsAfterBoxes = Math.max(0, totalUnitsInStock - (requestedBoxes * unitsPerBox));
+            requestedPills = Math.min(requestedPills, remainingUnitsAfterBoxes);
+
+            return {
+                ...item,
+                requestedBoxes,
+                requestedPills,
+                dosage: buildDispenseText(requestedBoxes, requestedPills)
+            };
+        }));
     };
 
     const handleSavePrescription = async () => {
         if (!diagnosis) return alert('Diagnosis is required');
+
+        const invalidQty = prescribedMedicines.some((m) => (Number(m.requestedBoxes) || 0) === 0 && (Number(m.requestedPills) || 0) === 0);
+        if (invalidQty) return alert('Please set boxes or pills for each selected medicine');
+
+        const missingDuration = prescribedMedicines.some((m) => !m.duration || !m.duration.trim());
+        if (missingDuration) return alert('Please enter duration for each selected medicine');
+
+        const medicinesPayload = prescribedMedicines.map((m) => ({
+            medicineId: m.medicineId,
+            name: m.name,
+            dosage: buildDispenseText(Number(m.requestedBoxes) || 0, Number(m.requestedPills) || 0),
+            duration: m.duration
+        }));
+
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
             const payload = {
                 patientId: selectedRequest.patient?._id || selectedRequest.patient,
                 diagnosis,
                 physicalExamination: physicalExam,
-                medicines: prescribedMedicines
+                medicines: medicinesPayload
             };
 
             // Save Prescription
-            await axios.post('https://lafoole.somsoftsystems.com/api/doctor/prescriptions', payload, config);
+            const { data: createdPrescription } = await axios.post('https://homecare.nidwa.com/api/doctor/prescriptions', payload, config);
 
             // Finalize Lab Request
-            await axios.patch(`https://lafoole.somsoftsystems.com/api/lab/requests/${selectedRequest._id}/finalize`, {
+            await axios.patch(`https://homecare.nidwa.com/api/lab/requests/${selectedRequest._id}/finalize`, {
                 conclusion: diagnosis,
                 physicalExamination: physicalExam,
-                medicines: prescribedMedicines
+                medicines: medicinesPayload,
+                prescriptionId: createdPrescription?._id
             }, config);
 
             // Update Patient Status
-            await axios.patch(`https://lafoole.somsoftsystems.com/api/doctor/patients/${selectedRequest.patient?._id || selectedRequest.patient}/status`, { visitStatus: 'Outpatient' }, config);
+            await axios.patch(`https://homecare.nidwa.com/api/doctor/patients/${selectedRequest.patient?._id || selectedRequest.patient}/status`, { visitStatus: 'Outpatient' }, config);
 
             if (window.confirm('Consultation finalized! Patient sent to pharmacy. Would you like to print the report now?')) {
                 handlePrintResults({
                     ...selectedRequest,
                     diagnosis,
                     physicalExamination: physicalExam,
-                    medicines: prescribedMedicines
+                    medicines: medicinesPayload
                 });
             }
 
@@ -127,7 +201,7 @@ const DoctorConsultation = () => {
     const handlePrintResults = async (request) => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`https://lafoole.somsoftsystems.com/api/lab/requests/${request._id}/print`, {}, config);
+            await axios.patch(`https://homecare.nidwa.com/api/lab/requests/${request._id}/print`, {}, config);
 
             const printWindow = window.open('', '', 'width=800,height=1000');
 
@@ -270,23 +344,19 @@ const DoctorConsultation = () => {
     const completedCount = labRequests.filter(r => ['Reviewed', 'Completed'].includes(r.status)).length;
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-700">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-emerald-900 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl"></div>
-                <div className="relative z-10">
-                    <h1 className="text-5xl font-black text-white tracking-tighter mb-2 uppercase italic flex items-center gap-4">
-                        <FileText size={48} className="text-emerald-400" /> Consultation Room
-                    </h1>
-                    <p className="text-emerald-300 font-black text-sm uppercase tracking-[.3em]">View Lab Results & Patient Reports</p>
-                </div>
+        <div className="page-section animate-in fade-in duration-700">
+            <div className="section-header">
+                <h1 className="section-title flex items-center gap-3">
+                    <FileText size={30} className="text-primary" /> Consultation Room
+                </h1>
+                <p className="section-subtitle">View lab results, conclude diagnosis, and send prescriptions to pharmacy.</p>
             </div>
 
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white border-2 border-blue-100 p-8 rounded-[2.5rem] shadow-lg">
+                <div className="card border-l-4 border-blue-500">
                     <div className="flex items-center gap-4 mb-4">
-                        <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center">
+                        <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
                             <FileText className="text-blue-600" size={32} />
                         </div>
                         <div>
@@ -297,9 +367,9 @@ const DoctorConsultation = () => {
                     <p className="text-xs text-slate-500 font-bold">All lab requests you created</p>
                 </div>
 
-                <div className="bg-white border-2 border-orange-100 p-8 rounded-[2.5rem] shadow-lg">
+                <div className="card border-l-4 border-amber-500">
                     <div className="flex items-center gap-4 mb-4">
-                        <div className="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center">
+                        <div className="w-14 h-14 bg-amber-100 rounded-xl flex items-center justify-center">
                             <Clock className="text-orange-600" size={32} />
                         </div>
                         <div>
@@ -310,9 +380,9 @@ const DoctorConsultation = () => {
                     <p className="text-xs text-slate-500 font-bold">Results entered by lab/cashier</p>
                 </div>
 
-                <div className="bg-white border-2 border-emerald-100 p-8 rounded-[2.5rem] shadow-lg">
+                <div className="card border-l-4 border-primary">
                     <div className="flex items-center gap-4 mb-4">
-                        <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center">
+                        <div className="w-14 h-14 bg-primary-light rounded-xl flex items-center justify-center">
                             <CheckCircle className="text-emerald-600" size={32} />
                         </div>
                         <div>
@@ -326,13 +396,13 @@ const DoctorConsultation = () => {
             </div>
 
             {/* Search */}
-            <div className="bg-white p-6 rounded-[2rem] shadow-lg border border-slate-100">
+            <div className="card">
                 <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                     <input
                         type="text"
                         placeholder="Search by ticket or patient name..."
-                        className="w-full pl-12 pr-6 py-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-emerald-500 font-bold"
+                        className="w-full pl-12"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                     />
@@ -340,30 +410,29 @@ const DoctorConsultation = () => {
             </div>
 
             {/* Lab Requests List */}
-            <div className="bg-white rounded-[2.5rem] shadow-lg border border-slate-100 overflow-hidden">
-                <div className="bg-slate-900 p-6 text-white">
+            <div className="card p-0 overflow-hidden">
+                <div className="border-b border-slate-200 bg-slate-50 p-6">
                     <h3 className="text-xl font-black flex items-center gap-3">
                         <FileText /> My Lab Requests ({filtered.length})
                     </h3>
-                    <p className="text-xs font-bold text-slate-400 mt-1 uppercase">Auto-refreshes every 10 seconds</p>
+                    <p className="text-xs font-bold text-slate-500 mt-1 uppercase">Auto-refreshes every 10 seconds</p>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-slate-50 border-b border-slate-100">
+                <div className="table-shell rounded-none border-0">
+                    <table className="data-table striped-table">
+                        <thead>
                             <tr>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Ticket</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Tests</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Payment</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Actions</th>
+                                <th>Ticket</th>
+                                <th>Patient</th>
+                                <th>Tests</th>
+                                <th>Payment</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50">
+                        <tbody>
                             {filtered.map((req) => (
-                                <tr key={req._id} className="hover:bg-slate-50/50 transition-colors">
+                                <tr key={req._id}>
                                     <td className="px-8 py-5">
                                         <span className="font-black text-emerald-600">{req.ticketNumber}</span>
                                     </td>
@@ -815,98 +884,126 @@ const DoctorConsultation = () => {
                                 </div>
 
                                 <div className="space-y-6">
-                                    <div className="relative group">
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[.3em] mb-4 px-2 group-focus-within:text-emerald-500 transition-colors">3. Prescribe Medicines</label>
-                                        <div className="relative">
-                                            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                                            <input
-                                                type="text"
-                                                className="w-full pl-16 pr-6 py-6 bg-slate-50 border-2 border-slate-100 rounded-3xl font-black text-slate-800 focus:border-emerald-500 focus:bg-white outline-none shadow-sm transition-all"
-                                                placeholder="Search pharmacy inventory..."
-                                                value={medicineSearch}
-                                                onChange={e => handleSearchMedicine(e.target.value)}
-                                            />
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[.3em] px-2">3. Prescribe Medicines</label>
+
+                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                                        <div className="bg-slate-50 border-2 border-slate-100 rounded-[2rem] p-5">
+                                            <div className="relative mb-3">
+                                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                                <input
+                                                    type="text"
+                                                    className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl font-bold text-slate-800 focus:border-emerald-500 outline-none transition-all"
+                                                    placeholder="Search medicine name or category..."
+                                                    value={medicineSearch}
+                                                    onChange={e => handleSearchMedicine(e.target.value)}
+                                                    onFocus={() => {
+                                                        if (!medicineSearch.trim()) fetchAvailableMedicines('');
+                                                    }}
+                                                />
+                                            </div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">Available Medicines</p>
+
+                                            <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
+                                                {foundMedicines.length === 0 ? (
+                                                    <div className="bg-white rounded-2xl p-6 border border-dashed border-slate-200 text-center">
+                                                        <p className="text-xs font-bold text-slate-400">No medicines found.</p>
+                                                    </div>
+                                                ) : foundMedicines.map((med) => {
+                                                    const stock = formatMedicineStock(med);
+                                                    const isSelected = prescribedMedicines.some((item) => item.medicineId === med._id);
+                                                    return (
+                                                        <button
+                                                            key={med._id}
+                                                            type="button"
+                                                            onClick={() => addMedicine(med)}
+                                                            disabled={isSelected}
+                                                            className={`w-full text-left p-4 rounded-2xl border transition-all ${isSelected ? 'bg-emerald-50 border-emerald-200 opacity-70 cursor-not-allowed' : 'bg-white border-slate-200 hover:border-emerald-300 hover:bg-emerald-50'}`}
+                                                        >
+                                                            <p className="font-black text-slate-800 uppercase italic flex items-center gap-2">
+                                                                <Beaker size={15} className="text-emerald-500" /> {med.name}
+                                                            </p>
+                                                            <div className="flex justify-between items-center mt-2">
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase">{med.category || 'General'}</span>
+                                                                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                                                                    {stock.boxes} Boxes + {stock.pills} Pills
+                                                                </span>
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
 
-                                        {foundMedicines.length > 0 && (
-                                            <div className="absolute z-[150] w-full mt-2 bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden ring-4 ring-slate-100/50">
-                                                {foundMedicines.map(med => (
-                                                    <button
-                                                        key={med._id}
-                                                        onClick={() => addMedicine(med)}
-                                                        className="w-full text-left px-8 py-6 hover:bg-emerald-50 border-b border-slate-50 last:border-none transition-all flex flex-col"
-                                                    >
-                                                        <p className="font-black text-slate-800 uppercase italic flex items-center gap-2 group">
-                                                            <Beaker size={16} className="text-emerald-500 transition-transform group-hover:scale-125" /> {med.name}
-                                                        </p>
-                                                        <div className="flex justify-between items-center mt-2">
-                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[.2em]">{med.category}</span>
-                                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${med.totalUnitsInStock > 10 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
-                                                                In Stock: {med.totalUnitsInStock} {med.unitMeasure}
-                                                            </span>
-                                                        </div>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
+                                        <div className="bg-white border-2 border-slate-100 rounded-[2rem] p-5">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">Selected Medicines</p>
+                                            <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
+                                                {prescribedMedicines.length === 0 ? (
+                                                    <div className="bg-slate-50 rounded-2xl p-10 border border-dashed border-slate-200 text-center">
+                                                        <p className="text-xs font-bold text-slate-400 uppercase">Select medicine from the left side</p>
+                                                    </div>
+                                                ) : prescribedMedicines.map((item, index) => {
+                                                    const stock = formatMedicineStock(item);
+                                                    return (
+                                                        <div key={index} className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                                                            <div className="flex items-start justify-between gap-3 mb-3">
+                                                                <div>
+                                                                    <p className="font-black text-slate-800 uppercase italic">{item.name}</p>
+                                                                    <p className="text-[10px] font-bold text-slate-400 mt-1">
+                                                                        Available: {stock.boxes} Boxes + {stock.pills} Pills
+                                                                    </p>
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setPrescribedMedicines(prescribedMedicines.filter((_, i) => i !== index))}
+                                                                    className="text-slate-300 hover:text-red-500 transition-colors p-1"
+                                                                >
+                                                                    <Search className="rotate-45" size={18} />
+                                                                </button>
+                                                            </div>
 
-                                    <div className="space-y-4">
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[.3em] px-2">Prescribed Items</label>
-                                        <div className="space-y-4 max-h-[380px] overflow-y-auto pr-2 custom-scrollbar p-1">
-                                            {prescribedMedicines.length === 0 ? (
-                                                <div className="p-16 border-4 border-dotted border-slate-100 rounded-[3rem] text-center bg-slate-50/50 flex flex-col items-center justify-center gap-4">
-                                                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-slate-200">
-                                                        <Beaker size={32} />
-                                                    </div>
-                                                    <p className="text-slate-300 font-black uppercase text-[10px] italic tracking-widest">No medicines prescribed yet</p>
-                                                </div>
-                                            ) : prescribedMedicines.map((item, index) => (
-                                                <div key={index} className="bg-white p-7 rounded-[2.5rem] border-2 border-slate-100 relative group hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-500/5 transition-all">
-                                                    <div className="flex justify-between mb-5 items-start">
-                                                        <p className="font-black text-slate-800 uppercase italic flex items-center gap-3">
-                                                            <span className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-xs shadow-sm">{index + 1}</span>
-                                                            <span className="text-lg tracking-tight">{item.name}</span>
-                                                        </p>
-                                                        <button
-                                                            onClick={() => setPrescribedMedicines(prescribedMedicines.filter((_, i) => i !== index))}
-                                                            className="text-slate-200 hover:text-red-500 transition-colors p-2"
-                                                        >
-                                                            <Search className="rotate-45" size={20} />
-                                                        </button>
-                                                    </div>
-                                                    <div className="grid grid-cols-2 gap-5">
-                                                        <div className="space-y-2">
-                                                            <span className="text-[9px] font-black text-slate-400 uppercase px-1 tracking-widest">Dosage</span>
-                                                            <input
-                                                                type="text"
-                                                                placeholder="e.g. 1x3"
-                                                                className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-black text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
-                                                                value={item.dosage}
-                                                                onChange={e => {
-                                                                    const newMeds = [...prescribedMedicines];
-                                                                    newMeds[index].dosage = e.target.value;
-                                                                    setPrescribedMedicines(newMeds);
-                                                                }}
-                                                            />
+                                                            <div className="grid grid-cols-3 gap-3 mb-3">
+                                                                <div>
+                                                                    <label className="text-[9px] font-black text-slate-400 uppercase">Boxes</label>
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        className="w-full bg-white rounded-xl border border-slate-200 p-2 text-sm font-bold outline-none focus:border-emerald-400"
+                                                                        value={item.requestedBoxes}
+                                                                        onChange={(e) => updateRequestedQuantity(index, 'requestedBoxes', e.target.value)}
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="text-[9px] font-black text-slate-400 uppercase">Pills</label>
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        className="w-full bg-white rounded-xl border border-slate-200 p-2 text-sm font-bold outline-none focus:border-emerald-400"
+                                                                        value={item.requestedPills}
+                                                                        onChange={(e) => updateRequestedQuantity(index, 'requestedPills', e.target.value)}
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="text-[9px] font-black text-slate-400 uppercase">Duration</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="e.g. 5 days"
+                                                                        className="w-full bg-white rounded-xl border border-slate-200 p-2 text-sm font-bold outline-none focus:border-emerald-400"
+                                                                        value={item.duration}
+                                                                        onChange={(e) => {
+                                                                            const value = e.target.value;
+                                                                            setPrescribedMedicines((prev) => prev.map((med, i) => i === index ? { ...med, duration: value } : med));
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            </div>
+
+                                                            <p className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-2 py-1 inline-block">
+                                                                Dispense: {item.dosage || buildDispenseText(0, 0)}
+                                                            </p>
                                                         </div>
-                                                        <div className="space-y-2">
-                                                            <span className="text-[9px] font-black text-slate-400 uppercase px-1 tracking-widest">Duration</span>
-                                                            <input
-                                                                type="text"
-                                                                placeholder="e.g. 5 days"
-                                                                className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-black text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
-                                                                value={item.duration}
-                                                                onChange={e => {
-                                                                    const newMeds = [...prescribedMedicines];
-                                                                    newMeds[index].duration = e.target.value;
-                                                                    setPrescribedMedicines(newMeds);
-                                                                }}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -935,6 +1032,7 @@ const DoctorConsultation = () => {
 };
 
 export default DoctorConsultation;
+
 
 
 

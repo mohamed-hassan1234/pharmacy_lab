@@ -6,13 +6,31 @@ const Medicine = require('../models/Medicine');
 const Debt = require('../models/Debt');
 const Customer = require('../models/Customer');
 const Supplier = require('../models/Supplier');
+const LabRequest = require('../models/LabRequest');
 
 const Prescription = require('../models/Prescription');
 
 // Process Sale (BOX or UNIT logic)
 router.post('/sales', protect, authorize('Cashier', 'Admin'), async (req, res) => {
     try {
-        const { items, customerName, customerId, paymentType, paidAmount = 0, prescriptionId } = req.body;
+        const { items, customerName, customerId, paymentType, paidAmount = 0, prescriptionId, labRequestId } = req.body;
+        if (!Array.isArray(items) || items.length === 0) {
+            throw new Error('No medicines selected for sale');
+        }
+
+        let linkedPrescription = null;
+        if (prescriptionId) {
+            linkedPrescription = await Prescription.findById(prescriptionId).populate('patientId', 'name');
+            if (!linkedPrescription) throw new Error('Prescription not found');
+            if (linkedPrescription.status !== 'Issued') {
+                throw new Error('Prescription already dispensed');
+            }
+        }
+
+        const resolvedCustomerName =
+            (customerName && customerName.trim()) ||
+            linkedPrescription?.patientId?.name ||
+            'Walk-in Customer';
 
         let totalAmount = 0;
         let totalCost = 0;
@@ -65,7 +83,9 @@ router.post('/sales', protect, authorize('Cashier', 'Admin'), async (req, res) =
             invoiceNumber,
             cashierId: req.user._id,
             customerId,
-            customerName,
+            prescriptionId: prescriptionId || null,
+            labRequestId: labRequestId || null,
+            customerName: resolvedCustomerName,
             items: saleItems,
             totalAmount,
             totalCost,
@@ -77,7 +97,7 @@ router.post('/sales', protect, authorize('Cashier', 'Admin'), async (req, res) =
         // Handle Credit (Debt)
         if (paymentType === 'CREDIT') {
             await Debt.create({
-                customerName,
+                customerName: resolvedCustomerName,
                 invoiceNumber,
                 saleId: sale._id,
                 totalAmount,
@@ -90,6 +110,14 @@ router.post('/sales', protect, authorize('Cashier', 'Admin'), async (req, res) =
         // Update Prescription Status if applicable
         if (prescriptionId) {
             await Prescription.findByIdAndUpdate(prescriptionId, { status: 'Dispensed' });
+        }
+
+        if (labRequestId) {
+            await LabRequest.findByIdAndUpdate(labRequestId, {
+                dispensedSaleId: sale._id,
+                dispensedAt: new Date(),
+                dispensedBy: req.user._id
+            });
         }
 
         res.status(201).json(sale);
@@ -243,6 +271,8 @@ router.get('/reports', protect, authorize('Cashier', 'Admin'), async (req, res) 
         const totalProfit = sales.reduce((acc, s) => acc + s.profit, 0);
         const totalCost = sales.reduce((acc, s) => acc + s.totalCost, 0);
         const totalDebts = debts.reduce((acc, d) => acc + d.remainingBalance, 0);
+        const cashRevenue = sales.filter(s => s.paymentType === 'CASH').reduce((acc, s) => acc + s.totalAmount, 0);
+        const creditRevenue = sales.filter(s => s.paymentType === 'CREDIT').reduce((acc, s) => acc + s.totalAmount, 0);
 
         // REAL-TIME INVENTORY AUDIT (TRUSTED DATA)
         const allMeds = await Medicine.find();
@@ -259,18 +289,40 @@ router.get('/reports', protect, authorize('Cashier', 'Admin'), async (req, res) 
         });
 
         const recentTransactions = await Sale.find({ cashierId: req.user._id })
+            .populate({
+                path: 'prescriptionId',
+                select: 'diagnosis physicalExamination patientId',
+                populate: { path: 'patientId', select: 'name patientId' }
+            })
+            .populate('labRequestId', 'patientName doctorConclusion physicalExamination')
             .sort({ createdAt: -1 })
             .limit(20);
+
+        const patientMedicinePurchases = recentTransactions
+            .filter((sale) => sale.prescriptionId || sale.labRequestId)
+            .map((sale) => ({
+                invoiceNumber: sale.invoiceNumber,
+                patientName: sale.prescriptionId?.patientId?.name || sale.labRequestId?.patientName || sale.customerName,
+                diagnosis: sale.prescriptionId?.diagnosis || sale.labRequestId?.doctorConclusion || '',
+                physicalExamination: sale.prescriptionId?.physicalExamination || sale.labRequestId?.physicalExamination || '',
+                paymentType: sale.paymentType,
+                totalAmount: sale.totalAmount,
+                items: sale.items,
+                createdAt: sale.createdAt
+            }));
 
         res.json({
             totalRevenue,
             totalProfit,
             totalCost,
             totalDebts,
+            cashRevenue,
+            creditRevenue,
             investedStockValue, // Money currently sitting on the shelf
             totalFullBoxes,
             totalLoosePills,
-            recentTransactions
+            recentTransactions,
+            patientMedicinePurchases
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -315,7 +367,7 @@ router.patch('/debts/:id', protect, authorize('Cashier', 'Admin'), async (req, r
 // @desc    Get All Prescriptions for Cashier
 router.get('/prescriptions', protect, authorize('Cashier', 'Admin'), async (req, res) => {
     try {
-        const prescriptions = await Prescription.find({ status: { $in: ['Issued', 'Partially Dispensed'] } })
+        const prescriptions = await Prescription.find({ status: 'Issued' })
             .populate('patientId', 'name patientId')
             .populate('doctorId', 'name')
             .sort({ createdAt: -1 });

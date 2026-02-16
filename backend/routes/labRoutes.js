@@ -65,10 +65,13 @@ router.get('/requests', protect, authorize('Lab Technician', 'Doctor', 'Cashier'
         const filter = {};
         if (status) filter.status = status;
         if (isPaid) filter.isPaid = isPaid === 'true';
+        if (req.user.role === 'Doctor') filter.doctorId = req.user._id;
 
         const requests = await LabRequest.find(filter)
             .populate('doctorId', 'name')
             .populate('patient', 'name patientId')
+            .populate('prescriptionId', 'status')
+            .populate('dispensedBy', 'name')
             .sort({ createdAt: -1 });
 
         res.json(requests);
@@ -84,11 +87,21 @@ router.get('/requests/:id', protect, authorize('Lab Technician', 'Doctor', 'Cash
             .populate('doctorId', 'name')
             .populate('patient', 'name patientId')
             .populate('resultEnteredBy', 'name')
-            .populate('printedBy', 'name');
+            .populate('printedBy', 'name')
+            .populate('prescriptionId', 'status')
+            .populate('dispensedBy', 'name');
 
 
         if (!request) {
             return res.status(404).json({ message: 'Lab request not found' });
+        }
+
+        if (
+            req.user.role === 'Doctor' &&
+            request.doctorId &&
+            request.doctorId._id.toString() !== req.user._id.toString()
+        ) {
+            return res.status(403).json({ message: 'Not authorized to view this lab request' });
         }
 
         res.json(request);
@@ -197,7 +210,7 @@ router.patch('/requests/:id/conclusion', protect, authorize('Doctor', 'Admin'), 
 // @desc    Finalize Request (Sent to Cashier)
 router.patch('/requests/:id/finalize', protect, authorize('Doctor', 'Admin'), async (req, res) => {
     try {
-        const { conclusion, physicalExamination, medicines } = req.body;
+        const { conclusion, physicalExamination, medicines, prescriptionId } = req.body;
         const request = await LabRequest.findById(req.params.id);
 
         if (!request) {
@@ -208,6 +221,7 @@ router.patch('/requests/:id/finalize', protect, authorize('Doctor', 'Admin'), as
         request.doctorConclusion = conclusion;
         request.physicalExamination = physicalExamination;
         request.medicines = medicines;
+        if (prescriptionId) request.prescriptionId = prescriptionId;
         request.doctorConclusionAt = new Date();
         request.status = 'Completed';
 

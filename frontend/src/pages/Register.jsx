@@ -21,7 +21,7 @@ const Register = () => {
         setError('');
         setLoading(true);
         try {
-            await axios.post('https://lafoole.somsoftsystems.com/api/auth/register', formData);
+            await axios.post('https://homecare.nidwa.com/api/auth/register', formData);
             navigate('/login');
         } catch (err) {
             setError(err.response?.data?.message || 'Registration failed');
@@ -145,3 +145,4 @@ const Register = () => {
 };
 
 export default Register;
+

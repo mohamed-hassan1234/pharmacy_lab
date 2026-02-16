@@ -15,6 +15,10 @@ router.post('/login', async (req, res) => {
     const user = await User.findOne({ email });
 
     if (user && (await user.comparePassword(password))) {
+        if (user.status === 'Inactive') {
+            return res.status(403).json({ message: 'Account is suspended. Contact admin.' });
+        }
+
         res.json({
             _id: user._id,
             name: user.name,

@@ -21,7 +21,7 @@ const PatientRegistration = () => {
             const config = {
                 headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` }
             };
-            const { data } = await axios.post('http://localhost:5000/api/doctor/patients', formData, config);
+            const { data } = await axios.post('https://homecare.nidwa.com/api/doctor/patients', formData, config);
             setSuccess(data);
             setFormData({ name: '', age: '', sex: 'Male', phone: '', address: '' });
 
@@ -33,20 +33,21 @@ const PatientRegistration = () => {
     };
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-bottom duration-500">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold">Patient Registration</h2>
-                    <p className="text-medical-muted">Add new patients to the clinical queue</p>
-                </div>
+        <div className="max-w-5xl mx-auto space-y-8 animate-in slide-in-from-bottom duration-500">
+            <div className="section-header">
+                <h2 className="section-title">Patient Registration</h2>
+                <p className="section-subtitle">Add new patients to the clinical queue.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 card">
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="lg:col-span-2 form-template">
+                    <h3 className="form-template-title">Basic Form Elements</h3>
+                    <p className="form-template-subtitle">Register a patient using your clinic data fields.</p>
+
+                    <form onSubmit={handleSubmit} className="form-template-row">
+                        <div className="form-grid gap-6">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">Full Name</label>
+                                <label>Name</label>
                                 <div className="relative">
                                     <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                     <input
@@ -60,7 +61,7 @@ const PatientRegistration = () => {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">Age</label>
+                                <label>Age</label>
                                 <div className="relative">
                                     <Hash className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                     <input
@@ -74,7 +75,7 @@ const PatientRegistration = () => {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">Sex</label>
+                                <label>Gender</label>
                                 <select
                                     className="input-field"
                                     value={formData.sex}
@@ -86,7 +87,7 @@ const PatientRegistration = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">Phone Number</label>
+                                <label>Phone number</label>
                                 <div className="relative">
                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                     <input
@@ -101,7 +102,7 @@ const PatientRegistration = () => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">Address</label>
+                            <label>City / Address</label>
                             <div className="relative">
                                 <MapPin className="absolute left-3 top-3 text-slate-400" size={18} />
                                 <textarea
@@ -113,11 +114,11 @@ const PatientRegistration = () => {
                             </div>
                         </div>
 
-                        <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2">
+                        <button type="submit" disabled={loading} className="btn-primary flex items-center justify-center gap-2">
                             {loading ? 'Processing...' : (
                                 <>
                                     <UserPlus size={20} />
-                                    Register & Generate Queue ID
+                                    Submit
                                 </>
                             )}
                         </button>
@@ -126,28 +127,28 @@ const PatientRegistration = () => {
 
                 <div className="space-y-6">
                     {success && (
-                        <div className="card bg-emerald-600 text-white border-none text-center shadow-xl shadow-emerald-600/20">
+                        <div className="card border-l-4 border-primary text-center">
                             <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <UserPlus size={32} />
+                                <UserPlus size={32} className="text-primary" />
                             </div>
-                            <h3 className="text-xl font-bold mb-1">Registered successfully</h3>
-                            <p className="opacity-90 text-sm mb-4">{success.name} has been registered.</p>
+                            <h3 className="text-xl font-bold mb-1 text-slate-900">Registered successfully</h3>
+                            <p className="text-sm text-slate-600 mb-4">{success.name} has been registered.</p>
 
-                            <div className="bg-white/10 rounded-xl p-4 mb-4">
-                                <p className="text-xs uppercase font-black opacity-60 italic mb-1">Patient ID</p>
-                                <p className="text-2xl font-black italic tracking-tighter">{success.patientId}</p>
+                            <div className="bg-primary-light rounded-xl p-4 mb-4">
+                                <p className="text-xs uppercase font-black text-primary-dark mb-1">Patient ID</p>
+                                <p className="text-2xl font-black text-primary-dark tracking-tighter">{success.patientId}</p>
                             </div>
 
                             <button
                                 onClick={async () => {
                                     try {
                                         const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-                                        await axios.patch(`https://lafoole.somsoftsystems.com/api/doctor/patients/${success._id}/status`, { visitStatus: 'Waiting for Doctor' }, config);
+                                        await axios.patch(`https://homecare.nidwa.com/api/doctor/patients/${success._id}/status`, { visitStatus: 'Waiting for Doctor' }, config);
                                         alert('Patient sent to Doctor queue!');
                                         setSuccess(null);
                                     } catch (err) { alert('Error sending to doctor'); }
                                 }}
-                                className="w-full bg-white text-emerald-600 font-black py-3 rounded-xl uppercase italic shadow-lg hover:bg-emerald-50 transition-all"
+                                className="btn-primary w-full uppercase"
                             >
                                 Send to Doctor
                             </button>
@@ -172,3 +173,4 @@ const PatientRegistration = () => {
 };
 
 export default PatientRegistration;
+

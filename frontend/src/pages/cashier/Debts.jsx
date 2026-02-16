@@ -17,7 +17,7 @@ const Debts = () => {
     const fetchDebts = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('https://lafoole.somsoftsystems.com/api/cashier/debts', config);
+            const { data } = await axios.get('https://homecare.nidwa.com/api/cashier/debts', config);
             setDebts(data);
         } catch (err) { console.error(err); }
         finally { setLoading(false); }
@@ -27,7 +27,7 @@ const Debts = () => {
         if (!paymentAmount || paymentAmount <= 0) return alert('Please enter a valid amount');
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`https://lafoole.somsoftsystems.com/api/cashier/debts/${payModal._id}`, { amountPaid: paymentAmount }, config);
+            await axios.patch(`https://homecare.nidwa.com/api/cashier/debts/${payModal._id}`, { amountPaid: paymentAmount }, config);
             setPayModal(null);
             setPaymentAmount('');
             fetchDebts();
@@ -38,19 +38,18 @@ const Debts = () => {
     const filtered = debts.filter(d => d.customerName.toLowerCase().includes(search.toLowerCase()) || d.invoiceNumber.includes(search));
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Header */}
-            <div className="bg-white p-8 rounded-3xl shadow-sm border-b-4 border-orange-500 flex justify-between items-center">
+        <div className="page-section animate-in fade-in duration-500">
+            <div className="section-header flex flex-wrap justify-between items-center gap-3">
                 <div>
-                    <h2 className="text-4xl font-black text-slate-800 tracking-tighter uppercase italic">Customer Debts (Dayn)</h2>
-                    <p className="text-orange-600 font-black text-[10px] uppercase tracking-widest mt-1">Collect money and update patient accounts</p>
+                    <h2 className="section-title">Customer Debts (Dayn)</h2>
+                    <p className="section-subtitle">Collect money and update patient accounts.</p>
                 </div>
                 <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                     <input
                         type="text"
                         placeholder="SEARCH CUSTOMER OR INVOICE..."
-                        className="pl-12 pr-6 py-4 bg-slate-100 rounded-2xl border-none focus:ring-2 focus:ring-orange-500 w-[300px] font-bold text-sm"
+                        className="w-[300px] pl-12 pr-6 py-4 text-sm font-bold"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                     />
@@ -177,3 +176,4 @@ const Debts = () => {
 };
 
 export default Debts;
+

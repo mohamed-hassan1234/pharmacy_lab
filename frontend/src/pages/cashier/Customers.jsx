@@ -15,7 +15,7 @@ const CustomerManagement = () => {
     const fetchCustomers = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('https://lafoole.somsoftsystems.com/api/cashier/customers', config);
+            const { data } = await axios.get('https://homecare.nidwa.com/api/cashier/customers', config);
             setCustomers(data);
         } catch (err) { console.error(err); }
     };
@@ -25,7 +25,7 @@ const CustomerManagement = () => {
         setLoading(true);
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.post('https://lafoole.somsoftsystems.com/api/cashier/customers', formData, config);
+            await axios.post('https://homecare.nidwa.com/api/cashier/customers', formData, config);
             setFormData({ name: '', phone: '' });
             fetchCustomers();
         } catch (err) { alert(err.response?.data?.message || 'Failed'); }
@@ -80,7 +80,7 @@ const CustomerManagement = () => {
                             <History className="text-primary" />
                             Customer List
                         </h2>
-                        <div className="relative w-64">
+                        <div className="relative w-full max-w-64">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                             <input
                                 type="text"
@@ -92,18 +92,18 @@ const CustomerManagement = () => {
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="bg-slate-50 border-b border-slate-100">
+                    <div className="table-shell">
+                        <table className="data-table striped-table">
+                            <thead>
                                 <tr>
-                                    <th className="px-4 py-3 text-sm font-bold text-slate-600">Name</th>
-                                    <th className="px-4 py-3 text-sm font-bold text-slate-600">Phone</th>
-                                    <th className="px-4 py-3 text-sm font-bold text-slate-600">Registered On</th>
+                                    <th>Name</th>
+                                    <th>Phone</th>
+                                    <th>Registered On</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody>
                                 {filteredCustomers.map(c => (
-                                    <tr key={c._id} className="hover:bg-slate-50 transition-colors">
+                                    <tr key={c._id}>
                                         <td className="px-4 py-4 font-semibold text-slate-800 uppercase tracking-tighter">{c.name}</td>
                                         <td className="px-4 py-4 font-mono text-slate-600">{c.phone || 'N/A'}</td>
                                         <td className="px-4 py-4 text-sm text-slate-500">{new Date(c.createdAt).toLocaleDateString()}</td>
@@ -120,3 +120,4 @@ const CustomerManagement = () => {
 };
 
 export default CustomerManagement;
+

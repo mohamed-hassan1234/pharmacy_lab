@@ -75,6 +75,10 @@ const labRequestSchema = new mongoose.Schema({
         dosage: { type: String },
         duration: { type: String }
     }],
+    prescriptionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Prescription' },
+    dispensedSaleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sale' },
+    dispensedAt: { type: Date },
+    dispensedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     doctorConclusionAt: { type: Date },
     isPrinted: { type: Boolean, default: false },
     printedAt: { type: Date },

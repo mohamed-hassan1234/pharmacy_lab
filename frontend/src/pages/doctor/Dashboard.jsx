@@ -32,7 +32,7 @@ const DoctorDashboard = () => {
     const fetchDashboard = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://https://lafoole.somsoftsystems.com/api/doctor/dashboard', config);
+            const { data } = await axios.get('https://homecare.nidwa.com/api/doctor/dashboard', config);
             setStats(data);
         } catch (err) { console.error(err); }
     };
@@ -40,7 +40,7 @@ const DoctorDashboard = () => {
     const fetchPatients = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://https://lafoole.somsoftsystems.com/api/doctor/patients', config);
+            const { data } = await axios.get('https://homecare.nidwa.com/api/doctor/patients', config);
             setPatients(data);
         } catch (err) { console.error(err); }
     };
@@ -51,10 +51,8 @@ const DoctorDashboard = () => {
             if (!userStr) return;
             const userObj = JSON.parse(userStr);
             const config = { headers: { Authorization: `Bearer ${userObj.token}` } };
-            const { data } = await axios.get('http://https://lafoole.somsoftsystems.com/api/lab/requests', config);
-            // Filter for this doctor's requests with "Awaiting Doctor" status
-            const awaiting = data.filter(req => req.doctorId?._id === userObj.user?._id && req.status === 'Awaiting Doctor');
-            setLabRequestsAwaiting(awaiting);
+            const { data } = await axios.get('https://homecare.nidwa.com/api/doctor/lab-reviews', config);
+            setLabRequestsAwaiting(Array.isArray(data) ? data : []);
         } catch (err) { console.error(err); }
     };
 
@@ -64,7 +62,7 @@ const DoctorDashboard = () => {
         }
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.post('http://https://lafoole.somsoftsystems.com/api/lab/requests', {
+            await axios.post('https://homecare.nidwa.com/api/lab/requests', {
                 patient: showLabRequest._id,
                 patientId: showLabRequest.patientId,
                 patientName: showLabRequest.name,
@@ -86,73 +84,54 @@ const DoctorDashboard = () => {
     );
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-700">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-emerald-900 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl"></div>
-                <div className="relative z-10">
-                    <h1 className="text-5xl font-black text-white tracking-tighter mb-2 uppercase italic flex items-center gap-4">
-                        <FlaskConical size={48} className="text-emerald-400" /> Doctor Dashboard
-                    </h1>
-                    <p className="text-emerald-300 font-black text-sm uppercase tracking-[.3em]">Patient Management & Lab Requests</p>
-                </div>
+        <div className="page-section animate-in fade-in duration-700">
+            <div className="section-header">
+                <h1 className="section-title flex items-center gap-3">
+                    <FlaskConical size={30} className="text-primary" /> Doctor Dashboard
+                </h1>
+                <p className="section-subtitle">Patient management and laboratory follow-up for your consultations.</p>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-                <div className="bg-gradient-to-br from-blue-600 to-blue-700 text-white p-8 rounded-[2.5rem] shadow-2xl">
-                    <Users className="mb-4" size={40} />
-                    <p className="text-xs font-black text-blue-200 uppercase tracking-widest mb-2">In Queue</p>
-                    <h3 className="text-5xl font-black tracking-tighter">{patients.filter(p => p.visitStatus === 'Waiting for Doctor').length}</h3>
+            <div className="metrics-grid md:grid-cols-5">
+                <div className="metric-card border-l-4 border-blue-500">
+                    <p className="metric-label">In Queue</p>
+                    <h3 className="metric-value">{patients.filter(p => p.visitStatus === 'Waiting for Doctor').length}</h3>
                 </div>
 
-                <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 text-white p-8 rounded-[2.5rem] shadow-2xl">
-                    <CheckCircle className="mb-4" size={40} />
-                    <p className="text-xs font-black text-emerald-200 uppercase tracking-widest mb-2">Today's Patients</p>
-                    <h3 className="text-5xl font-black tracking-tighter">{stats?.todayPatients || 0}</h3>
+                <div className="metric-card border-l-4 border-primary">
+                    <p className="metric-label">Today's Patients</p>
+                    <h3 className="metric-value">{stats?.todayPatients || 0}</h3>
                 </div>
 
-                <div className="bg-gradient-to-br from-purple-600 to-purple-700 text-white p-8 rounded-[2.5rem] shadow-2xl">
-                    <FlaskConical className="mb-4" size={40} />
-                    <p className="text-xs font-black text-purple-200 uppercase tracking-widest mb-2">My Lab Requests</p>
-                    <h3 className="text-5xl font-black tracking-tighter">{stats?.myLabRequests || 0}</h3>
+                <div className="metric-card border-l-4 border-sky-500">
+                    <p className="metric-label">My Lab Requests</p>
+                    <h3 className="metric-value">{stats?.myLabRequests || 0}</h3>
                 </div>
 
-                <div className="bg-gradient-to-br from-orange-600 to-orange-700 text-white p-8 rounded-[2.5rem] shadow-2xl">
-                    <Clock className="mb-4" size={40} />
-                    <p className="text-xs font-black text-orange-200 uppercase tracking-widest mb-2">Active Consults</p>
-                    <h3 className="text-5xl font-black tracking-tighter">{patients.filter(p => p.visitStatus === 'In Consultation').length}</h3>
+                <div className="metric-card border-l-4 border-amber-500">
+                    <p className="metric-label">Active Consults</p>
+                    <h3 className="metric-value">{patients.filter(p => p.visitStatus === 'In Consultation').length}</h3>
                 </div>
 
-                {/* NEW: Awaiting Doctor Review Card - CLICKABLE */}
                 <button
                     onClick={() => navigate('/doctor/consult')}
-                    className={`bg-gradient-to-br from-red-600 to-red-700 text-white p-8 rounded-[2.5rem] shadow-2xl hover:scale-105 transition-all text-left relative overflow-hidden ${labRequestsAwaiting.length > 0 ? 'animate-pulse ring-4 ring-red-400' : ''}`}
+                    className={`metric-card border-l-4 border-red-500 text-left transition-colors hover:bg-red-50 ${labRequestsAwaiting.length > 0 ? 'ring-2 ring-red-200' : ''}`}
                 >
-                    {labRequestsAwaiting.length > 0 && (
-                        <div className="absolute top-2 right-2">
-                            <span className="flex h-4 w-4">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-4 w-4 bg-white"></span>
-                            </span>
-                        </div>
-                    )}
-                    <AlertCircle className="mb-4" size={40} />
-                    <p className="text-xs font-black text-red-200 uppercase tracking-widest mb-2">Awaiting Review</p>
-                    <h3 className="text-5xl font-black tracking-tighter">{labRequestsAwaiting.length}</h3>
-                    <p className="text-xs font-bold text-red-100 mt-2 uppercase">Click to Review →</p>
+                    <p className="metric-label text-red-600">Awaiting Review</p>
+                    <h3 className="metric-value text-red-700">{labRequestsAwaiting.length}</h3>
+                    <p className="metric-hint">Click to review results</p>
                 </button>
             </div>
 
 
             {/* Search */}
-            <div className="bg-white p-6 rounded-[2rem] shadow-lg border border-slate-100">
+            <div className="card">
                 <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                     <input
                         type="text"
                         placeholder="Search patients..."
-                        className="w-full pl-12 pr-6 py-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-emerald-500 font-bold"
+                        className="w-full pl-12"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                     />
@@ -160,27 +139,27 @@ const DoctorDashboard = () => {
             </div>
 
             {/* Patient List */}
-            <div className="bg-white rounded-[2.5rem] shadow-lg border border-slate-100 overflow-hidden">
-                <div className="bg-slate-900 p-6 text-white">
+            <div className="card p-0 overflow-hidden">
+                <div className="border-b border-slate-200 bg-slate-50 p-6">
                     <h3 className="text-xl font-black flex items-center gap-3">
                         <Users /> Patients ({filtered.length})
                     </h3>
-                    <p className="text-xs font-bold text-slate-400 mt-1 uppercase">Click to create lab request</p>
+                    <p className="text-xs font-bold text-slate-500 mt-1 uppercase">Click a row to start consultation and lab request</p>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-slate-50 border-b border-slate-100">
+                <div className="table-shell rounded-none border-0">
+                    <table className="data-table striped-table">
+                        <thead>
                             <tr>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient ID</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Age & Sex</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Action</th>
+                                <th>Patient ID</th>
+                                <th>Name</th>
+                                <th>Age and Sex</th>
+                                <th>Contact</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50">
+                        <tbody>
                             {filtered.map((patient) => (
-                                <tr key={patient._id} className="hover:bg-slate-50/50 transition-colors">
+                                <tr key={patient._id}>
                                     <td className="px-8 py-5">
                                         <span className="font-black text-blue-600 text-sm">{patient.patientId}</span>
                                     </td>
@@ -203,11 +182,11 @@ const DoctorDashboard = () => {
                                         <button
                                             onClick={async () => {
                                                 const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-                                                await axios.patch(`http://https://lafoole.somsoftsystems.com/api/doctor/patients/${patient._id}/status`, { visitStatus: 'In Consultation' }, config);
+                                                await axios.patch(`https://homecare.nidwa.com/api/doctor/patients/${patient._id}/status`, { visitStatus: 'In Consultation' }, config);
                                                 setShowLabRequest(patient);
                                                 fetchPatients();
                                             }}
-                                            className="bg-emerald-100 text-emerald-600 px-4 py-2 rounded-xl font-black text-xs uppercase hover:bg-emerald-200 transition-colors flex items-center gap-2"
+                                            className="btn-primary text-xs uppercase tracking-wide"
                                         >
                                             <Plus size={16} /> Start Consultation
                                         </button>
@@ -321,3 +300,4 @@ const DoctorDashboard = () => {
 };
 
 export default DoctorDashboard;
+

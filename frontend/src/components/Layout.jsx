@@ -1,10 +1,37 @@
-import { Outlet, Navigate, Link } from 'react-router-dom';
+import { Outlet, Navigate, Link, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import AIHelpAgent from './AIHelpAgent';
 import { useAuth } from '../context/AuthContext';
-import { User } from 'lucide-react';
+import { Bell, CalendarDays, ChevronDown, Menu, Search, User } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 const Layout = () => {
-    const { user, loading } = useAuth();
+    const { user, loading, viewMode, setViewMode } = useAuth();
+    const location = useLocation();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    const formattedDate = useMemo(
+        () =>
+            new Date().toLocaleDateString('en-US', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            }),
+        []
+    );
+
+    useEffect(() => {
+        if (!user) return;
+
+        const isLabRoute = location.pathname.startsWith('/lab');
+        const mustBeLabMode = user.role === 'Lab Technician' || isLabRoute;
+
+        if (mustBeLabMode && viewMode !== 'laboratory') {
+            setViewMode('laboratory');
+            localStorage.setItem('clinic_view_mode', 'laboratory');
+        }
+    }, [location.pathname, setViewMode, user, viewMode]);
 
     if (loading) return (
         <div className="h-screen w-screen flex items-center justify-center bg-medical-bg">
@@ -15,29 +42,57 @@ const Layout = () => {
     if (!user) return <Navigate to="/login" />;
 
     return (
-        <div className="flex min-h-screen bg-medical-bg">
-            <Sidebar />
-            <main className="flex-1 p-8 overflow-y-auto">
-                <header className="flex justify-between items-center mb-8">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-800">Welcome back, {user.name}</h1>
-                        <p className="text-medical-muted">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                    </div>
-                    <div className="flex gap-4">
-                        <Link
-                            to="/profile"
-                            className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-2 hover:shadow-md transition-all font-bold text-slate-700 hover:text-primary"
+        <div className="app-shell">
+            {sidebarOpen && <button className="app-overlay" onClick={() => setSidebarOpen(false)} aria-label="Close sidebar" />}
+
+            <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+            <main className="app-main">
+                <header className="app-topbar">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <button
+                            type="button"
+                            className="btn-secondary px-3 py-2 lg:hidden"
+                            onClick={() => setSidebarOpen(true)}
+                            aria-label="Open sidebar"
                         >
-                            <User size={20} />
-                            <span className="text-sm uppercase tracking-wider">My Profile</span>
-                        </Link>
-                        <div className="bg-white p-2 rounded-lg shadow-sm border border-slate-100 flex items-center gap-2">
-                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                            <span className="text-xs font-medium text-slate-500 uppercase tracking-widest">System Online</span>
+                            <Menu size={18} />
+                        </button>
+
+                        <div className="topbar-search">
+                            <Search size={16} className="text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Search patients, medicines, invoices..."
+                                className="w-full border-none bg-transparent p-0 text-sm font-medium text-slate-700 focus:ring-0"
+                            />
                         </div>
                     </div>
+
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="topbar-chip hidden sm:inline-flex">
+                            <CalendarDays size={14} />
+                            <span>{formattedDate}</span>
+                        </div>
+                        <div className="topbar-chip hidden md:inline-flex">
+                            <span>1 Month</span>
+                            <ChevronDown size={14} />
+                        </div>
+                        <button type="button" className="topbar-chip px-2.5" aria-label="Notifications">
+                            <Bell size={15} />
+                        </button>
+                        <Link to="/profile" className="topbar-chip">
+                            <User size={14} />
+                            <span className="max-w-28 truncate text-xs font-semibold">{user?.name}</span>
+                        </Link>
+                    </div>
                 </header>
-                <Outlet />
+
+                <section className="app-content">
+                    <Outlet />
+                </section>
+
+                <AIHelpAgent />
             </main>
         </div>
     );

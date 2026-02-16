@@ -16,7 +16,7 @@ const LabPayments = () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
             // Fetch all requests and filter for 'Awaiting Payment'
-            const { data } = await axios.get('https://lafoole.somsoftsystems.com/api/lab/requests', config);
+            const { data } = await axios.get('https://homecare.nidwa.com/api/lab/requests', config);
             setRequests(data.filter(r => r.status === 'Awaiting Payment'));
         } catch (err) { console.error(err); }
     };
@@ -25,7 +25,7 @@ const LabPayments = () => {
         if (!amount || isNaN(amount)) return alert('Please enter a valid amount');
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`https://lafoole.somsoftsystems.com/api/lab/requests/${selectedRequest._id}/pay`, { amount: Number(amount) }, config);
+            await axios.patch(`https://homecare.nidwa.com/api/lab/requests/${selectedRequest._id}/pay`, { amount: Number(amount) }, config);
             alert('Payment confirmed successfully!');
             setSelectedRequest(null);
             setAmount('');
@@ -39,15 +39,15 @@ const LabPayments = () => {
     );
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-700">
-            <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900 p-10 rounded-[3rem] shadow-2xl">
-                <h1 className="text-5xl font-black text-white tracking-tighter mb-2 uppercase italic flex items-center gap-4">
-                    <CreditCard size={48} className="text-blue-400" /> Lab Payments
+        <div className="page-section animate-in fade-in duration-700">
+            <div className="section-header">
+                <h1 className="section-title flex items-center gap-3">
+                    <CreditCard size={30} className="text-primary" /> Lab Payments
                 </h1>
-                <p className="text-blue-300 font-black text-sm uppercase tracking-[.3em]">Confirm payments for ordered tests</p>
+                <p className="section-subtitle">Confirm payments for ordered laboratory tests.</p>
             </div>
 
-            <div className="bg-white p-6 rounded-[2rem] shadow-lg border border-slate-100">
+            <div className="card">
                 <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                     <input
@@ -60,25 +60,25 @@ const LabPayments = () => {
                 </div>
             </div>
 
-            <div className="bg-white rounded-[2.5rem] shadow-lg border border-slate-100 overflow-hidden">
-                <div className="bg-slate-900 p-6 text-white divide-y divide-slate-800">
+            <div className="card p-0 overflow-hidden">
+                <div className="border-b border-slate-200 bg-slate-50 p-6">
                     <div className="pb-4">
-                        <h3 className="text-xl font-black flex items-center gap-3 italic uppercase">
-                            <Clock className="text-orange-400" /> Awaiting Payment ({filtered.length})
+                        <h3 className="text-xl font-black flex items-center gap-3 uppercase">
+                            <Clock className="text-amber-500" /> Awaiting Payment ({filtered.length})
                         </h3>
                     </div>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-slate-50">
+                <div className="table-shell rounded-none border-0">
+                    <table className="data-table striped-table">
+                        <thead>
                             <tr>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Ticket</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Tests</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Action</th>
+                                <th>Ticket</th>
+                                <th>Patient</th>
+                                <th>Tests</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50">
+                        <tbody>
                             {filtered.length === 0 ? (
                                 <tr>
                                     <td colSpan="4" className="px-8 py-20 text-center text-slate-400 font-bold uppercase tracking-widest">
@@ -175,3 +175,4 @@ const LabPayments = () => {
 };
 
 export default LabPayments;
+
