@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Shield, UserPlus, Users, DollarSign, TrendingUp, FlaskConical, Key, UserX, Trash2, Activity } from 'lucide-react';
 import { convertSosToUsd } from '../../utils/currency';
 
-const API_BASE_URL = 'https://homecare.nidwa.com';
+const API_BASE_URL = 'http://localhost:5010';
 const DEFAULT_PASSWORD = '1234';
 
 const toDateTime = (value) => (value ? new Date(value).toLocaleString() : '-');
@@ -295,4 +295,5 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
+
 

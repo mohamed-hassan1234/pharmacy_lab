@@ -28,7 +28,7 @@ const MedicineRegistration = () => {
     const fetchSuppliers = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('https://homecare.nidwa.com/api/inventory/suppliers', config);
+            const { data } = await axios.get('http://localhost:5010/api/inventory/suppliers', config);
             setSuppliers(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error(err);
@@ -38,7 +38,7 @@ const MedicineRegistration = () => {
     const fetchMedicines = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('https://homecare.nidwa.com/api/inventory/medicines', config);
+            const { data } = await axios.get('http://localhost:5010/api/inventory/medicines', config);
             setMedicines(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error(err);
@@ -80,7 +80,7 @@ const MedicineRegistration = () => {
         setLoading(true);
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.post('https://homecare.nidwa.com/api/inventory/medicines', formData, config);
+            await axios.post('http://localhost:5010/api/inventory/medicines', formData, config);
             setFormData({
                 name: '',
                 category: '',
@@ -286,4 +286,5 @@ const MedicineRegistration = () => {
 };
 
 export default MedicineRegistration;
+
 

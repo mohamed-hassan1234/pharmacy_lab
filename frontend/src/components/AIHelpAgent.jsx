@@ -1,19 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bot, Languages, Loader2, MessageCircle, Send, X } from 'lucide-react';
+import { Bot, Languages, Loader2, MessageCircle, Mic, Send, Volume2, VolumeX, X } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
-const API_URL = 'https://homecare.nidwa.com/api/assistant/chat';
+const API_URL = 'http://localhost:5010/api/assistant/chat';
 
 const getDefaultSuggestions = (role, lang = 'en') => {
   if (lang === 'so') {
     if (role === 'Cashier') {
       return [
         'Sidee baan bukaan u diiwaangeliyaa?',
-        'Ii soo koob iibka maanta',
-        'Dayn intee leeg ayaa furan?',
-        'Warbixinta USD sidee loo akhriyaa?'
+        'I tus xaaladda nidaamka',
+        'Maanta iyo shalay profit farqigooda i tus',
+        'Warbixin daily/weekly/monthly/yearly i sii'
       ];
     }
 
@@ -21,8 +21,8 @@ const getDefaultSuggestions = (role, lang = 'en') => {
       return [
         'Sidee consultation loo dhammeeyaa?',
         'Imisa ayaa doctor sugaya?',
-        'Sidee prescription loo diraa?',
-        'Ii soo koob queue-ga maanta'
+        'I tus xaaladda nidaamka',
+        'Warbixin monthly i sii'
       ];
     }
 
@@ -30,25 +30,25 @@ const getDefaultSuggestions = (role, lang = 'en') => {
       return [
         'Sidee natiijooyinka lab loo geliyaa?',
         'Ii soo sheeg paid tickets',
-        'Sidee doctor loogu diraa natiijo?',
-        'Status-yada lab sharax'
+        'Status-yada lab sharax',
+        'Warbixin weekly i sii'
       ];
     }
 
     return [
-      'Ii soo koob dashboard-ka',
-      'Inventory health i tus',
-      'Dayn furan i tus',
-      'Workflow-ka system-ka sharax'
+      'Ii soo koob xaaladda nidaamka',
+      'Profit maanta vs shalay i tus',
+      'Warbixin daily/weekly/monthly/yearly',
+      'Inventory status i tus'
     ];
   }
 
   if (role === 'Cashier') {
     return [
       'How do I register a patient?',
-      'Show today sales summary',
-      'How much debt is open?',
-      'How to read USD in reports?'
+      'Show system status',
+      'Compare today vs yesterday profit',
+      'Give daily/weekly/monthly/yearly report'
     ];
   }
 
@@ -56,8 +56,8 @@ const getDefaultSuggestions = (role, lang = 'en') => {
     return [
       'How do I finalize consultation?',
       'How many are awaiting doctor?',
-      'How do I send a prescription?',
-      'Show my queue today'
+      'Show system status',
+      'Give monthly report'
     ];
   }
 
@@ -65,27 +65,28 @@ const getDefaultSuggestions = (role, lang = 'en') => {
     return [
       'How do I enter lab results?',
       'Show paid lab tickets',
-      'How do I send results to doctor?',
-      'Explain lab statuses'
+      'Explain lab statuses',
+      'Give weekly report'
     ];
   }
 
   return [
-    'Give me dashboard summary',
-    'Show inventory health',
-    'Show open debts today',
-    'Explain full system workflow'
+    'Show system status',
+    'Compare today vs yesterday profit',
+    'Give daily/weekly/monthly/yearly report',
+    'Show inventory health'
   ];
 };
 
 const getWelcomeText = (name, lang = 'en') => {
   if (lang === 'so') {
-    return `Salaan ${name || ''}! Waxaan ahay AI Help Agent-kaaga. I weydii su'aalo ku saabsan patients, medicines, sales, reports, lab, iyo roles.`;
+    return `Salaan ${name || ''}! Waxaan ahay AI Help Agent-kaaga. Waad qori kartaa ama cod ku hadli kartaa (English/Somali). I weydii status-ka nidaamka, profit maanta vs shalay, ama report daily/weekly/monthly/yearly.`;
   }
-  return `Hi ${name || 'there'}! I am your AI Help Agent. Ask about patients, medicines, sales, reports, lab, and role workflows.`;
+  return `Hello ${name || 'there'}! I am your AI Help Agent. You can type or talk by voice (English/Somali). Ask system status, today vs yesterday profit, or daily/weekly/monthly/yearly reports.`;
 };
 
 const normalizeLanguage = (lang) => (lang === 'so' ? 'so' : 'en');
+const getSpeechLang = (lang) => (lang === 'so' ? 'so-SO' : 'en-US');
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -96,9 +97,15 @@ const AIHelpAgent = () => {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [language, setLanguage] = useState('auto');
+  const [conversationLang, setConversationLang] = useState('en');
+  const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(true);
+  const [listening, setListening] = useState(false);
+  const [voiceInputSupported, setVoiceInputSupported] = useState(false);
   const [messages, setMessages] = useState([]);
   const [suggestions, setSuggestions] = useState(getDefaultSuggestions(user?.role, 'en'));
   const listRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const lastSpokenMessageIdRef = useRef(null);
 
   useEffect(() => {
     const lang = normalizeLanguage(language);
@@ -124,7 +131,43 @@ const AIHelpAgent = () => {
       );
       setSuggestions(getDefaultSuggestions(user?.role, lang));
     }
+    if (language === 'en' || language === 'so') {
+      setConversationLang(language);
+    }
   }, [language]);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    setVoiceInputSupported(Boolean(SpeechRecognition));
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open || !voiceOutputEnabled) return;
+    const latestMessage = messages[messages.length - 1];
+    if (!latestMessage || latestMessage.role !== 'assistant') return;
+    if (lastSpokenMessageIdRef.current === latestMessage.id) return;
+    if (!window.speechSynthesis) return;
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(latestMessage.text);
+    utterance.lang = getSpeechLang(conversationLang);
+    utterance.rate = 0.95;
+    utterance.pitch = 1;
+    window.speechSynthesis.speak(utterance);
+    lastSpokenMessageIdRef.current = latestMessage.id;
+  }, [messages, open, voiceOutputEnabled, conversationLang]);
 
   useEffect(() => {
     if (!listRef.current) return;
@@ -139,6 +182,43 @@ const AIHelpAgent = () => {
       })),
     [messages]
   );
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    setListening(false);
+  };
+
+  const startListening = () => {
+    if (!voiceInputSupported || listening || sending) return;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+    recognition.lang = getSpeechLang(language === 'auto' ? conversationLang : language);
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => setListening(true);
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => {
+      setListening(false);
+      recognitionRef.current = null;
+    };
+    recognition.onresult = (event) => {
+      const transcript = event.results?.[0]?.[0]?.transcript?.trim();
+      if (transcript) {
+        setInput(transcript);
+        sendMessage(transcript);
+      }
+    };
+
+    recognition.start();
+  };
 
   const sendMessage = async (rawMessage) => {
     const message = String(rawMessage || '').trim();
@@ -174,6 +254,7 @@ const AIHelpAgent = () => {
       const assistantText = assistantTextRaw.replace(/\n{3,}/g, '\n\n').trim();
 
       setMessages((prev) => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: assistantText }]);
+      setConversationLang(normalizeLanguage(data?.language || language));
 
       if (Array.isArray(data?.suggestions) && data.suggestions.length > 0) {
         setSuggestions(data.suggestions.slice(0, 4));
@@ -214,6 +295,20 @@ const AIHelpAgent = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (voiceOutputEnabled && window.speechSynthesis) {
+                    window.speechSynthesis.cancel();
+                  }
+                  setVoiceOutputEnabled((prev) => !prev);
+                }}
+                className="rounded-lg border border-white/20 bg-white/10 p-1.5 text-slate-100 hover:bg-white/20"
+                aria-label={voiceOutputEnabled ? 'Disable voice output' : 'Enable voice output'}
+                title={voiceOutputEnabled ? 'Voice on' : 'Voice off'}
+              >
+                {voiceOutputEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+              </button>
               <label className="ai-agent-lang">
                 <Languages size={13} />
                 <select value={language} onChange={(e) => setLanguage(e.target.value)}>
@@ -270,17 +365,33 @@ const AIHelpAgent = () => {
               sendMessage(input);
             }}
           >
+            <button
+              type="button"
+              onClick={listening ? stopListening : startListening}
+              disabled={!voiceInputSupported || sending}
+              className={`btn-secondary px-3 py-2 ${listening ? 'border-red-200 bg-red-50 text-red-600' : ''}`}
+              title={voiceInputSupported ? (listening ? 'Stop listening' : 'Speak your question') : 'Voice input not supported'}
+            >
+              <Mic size={14} />
+            </button>
             <input
               type="text"
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="Ask about this system..."
+              placeholder={listening ? 'Listening...' : 'Ask or speak about this system...'}
               className="ai-agent-input"
             />
             <button type="submit" className="btn-primary px-3 py-2" disabled={sending || !input.trim()}>
               <Send size={14} />
             </button>
           </form>
+          <div className="px-3 pb-2 text-[11px] text-slate-500">
+            {voiceInputSupported
+              ? (listening
+                ? 'Listening now... Speak in English or Somali.'
+                : 'Voice ready: speak in English or Somali.')
+              : 'Voice input is not available in this browser.'}
+          </div>
         </section>
       )}
 
@@ -298,4 +409,5 @@ const AIHelpAgent = () => {
 };
 
 export default AIHelpAgent;
+
 

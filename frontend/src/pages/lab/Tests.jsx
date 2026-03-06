@@ -37,7 +37,7 @@ const LabTests = () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
 
-            let url = 'https://homecare.nidwa.com/api/lab/requests?isPaid=true';
+            let url = 'http://localhost:5010/api/lab/requests?isPaid=true';
             if (statusFilter !== 'All') {
                 url += `&status=${statusFilter}`;
             }
@@ -63,7 +63,7 @@ const LabTests = () => {
     const handleSaveResults = async (silent = false) => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`https://homecare.nidwa.com/api/lab/requests/${selectedRequest._id}/results`, { results }, config);
+            await axios.patch(`http://localhost:5010/api/lab/requests/${selectedRequest._id}/results`, { results }, config);
             if (!silent) alert('Results saved successfully!');
             setShowResults(false);
             fetchRequests();
@@ -77,7 +77,7 @@ const LabTests = () => {
     const handleComplete = async (id) => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`https://homecare.nidwa.com/api/lab/requests/${id}/complete`, {}, config);
+            await axios.patch(`http://localhost:5010/api/lab/requests/${id}/complete`, {}, config);
             alert('Patient returned to Doctor successfully!');
             fetchRequests();
         } catch (err) { alert(err.response?.data?.message || 'Error completing request'); }
@@ -117,7 +117,7 @@ const LabTests = () => {
     const handlePrintResults = async (request) => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`https://homecare.nidwa.com/api/lab/requests/${request._id}/print`, {}, config);
+            await axios.patch(`http://localhost:5010/api/lab/requests/${request._id}/print`, {}, config);
 
             const printWindow = window.open('', '', 'width=800,height=1000');
             printWindow.document.write(`
@@ -560,4 +560,5 @@ const LabTests = () => {
 };
 
 export default LabTests;
+
 

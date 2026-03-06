@@ -21,7 +21,7 @@ const Profile = () => {
     const fetchProfile = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('https://homecare.nidwa.com/api/profile/me', config);
+            const { data } = await axios.get('http://localhost:5010/api/profile/me', config);
             setUser(data);
             setFormData({ name: data.name, email: data.email });
         } catch (err) { console.error(err); }
@@ -32,7 +32,7 @@ const Profile = () => {
         e.preventDefault();
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch('https://homecare.nidwa.com/api/profile/me', formData, config);
+            await axios.patch('http://localhost:5010/api/profile/me', formData, config);
             setEditMode(false);
             fetchProfile();
             alert('Profile updated successfully!');
@@ -46,7 +46,7 @@ const Profile = () => {
         }
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch('https://homecare.nidwa.com/api/profile/me/change-password', {
+            await axios.patch('http://localhost:5010/api/profile/me/change-password', {
                 currentPassword: passwordData.currentPassword,
                 newPassword: passwordData.newPassword
             }, config);
@@ -61,7 +61,7 @@ const Profile = () => {
         if (!confirm('Are you absolutely sure? This action cannot be undone!')) return;
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.delete('https://homecare.nidwa.com/api/profile/me', { data: { password: deletePassword }, ...config });
+            await axios.delete('http://localhost:5010/api/profile/me', { data: { password: deletePassword }, ...config });
             localStorage.removeItem('clinic_user');
             navigate('/login');
         } catch (err) { alert(err.response?.data?.message || 'Error deleting account'); }
@@ -265,4 +265,5 @@ const Profile = () => {
 };
 
 export default Profile;
+
 

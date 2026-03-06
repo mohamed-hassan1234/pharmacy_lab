@@ -14,7 +14,7 @@ const SupplierManagement = () => {
     const fetchSuppliers = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('https://homecare.nidwa.com/api/inventory/suppliers', config);
+            const { data } = await axios.get('http://localhost:5010/api/inventory/suppliers', config);
             setSuppliers(data);
         } catch (err) { console.error(err); }
     };
@@ -24,7 +24,7 @@ const SupplierManagement = () => {
         setLoading(true);
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.post('https://homecare.nidwa.com/api/inventory/suppliers', formData, config);
+            await axios.post('http://localhost:5010/api/inventory/suppliers', formData, config);
             setFormData({ name: '', source: '', note: '' });
             fetchSuppliers();
         } catch (err) { alert(err.response?.data?.message || 'Failed'); }
@@ -113,4 +113,5 @@ const SupplierManagement = () => {
 };
 
 export default SupplierManagement;
+
 

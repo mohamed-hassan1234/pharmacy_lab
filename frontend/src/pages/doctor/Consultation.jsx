@@ -45,7 +45,7 @@ const DoctorConsultation = () => {
             const userObj = JSON.parse(userStr);
             const config = { headers: { Authorization: `Bearer ${userObj.token}` } };
 
-            const { data } = await axios.get('https://homecare.nidwa.com/api/lab/requests', config);
+            const { data } = await axios.get('http://localhost:5010/api/lab/requests', config);
             setLabRequests(Array.isArray(data) ? data : []);
         } catch (err) { console.error(err); }
     };
@@ -54,7 +54,7 @@ const DoctorConsultation = () => {
     const handleViewResults = async (request) => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get(`https://homecare.nidwa.com/api/lab/requests/${request._id}`, config);
+            const { data } = await axios.get(`http://localhost:5010/api/lab/requests/${request._id}`, config);
             setSelectedRequest(data);
             setConclusion(data.doctorConclusion || '');
             setShowResults(true);
@@ -72,7 +72,7 @@ const DoctorConsultation = () => {
     const fetchAvailableMedicines = async (query = '') => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get(`https://homecare.nidwa.com/api/doctor/medicines/search?query=${encodeURIComponent(query)}&limit=100`, config);
+            const { data } = await axios.get(`http://localhost:5010/api/doctor/medicines/search?query=${encodeURIComponent(query)}&limit=100`, config);
             setFoundMedicines(Array.isArray(data) ? data : []);
         } catch (err) { console.error(err); }
     };
@@ -166,10 +166,10 @@ const DoctorConsultation = () => {
             };
 
             // Save Prescription
-            const { data: createdPrescription } = await axios.post('https://homecare.nidwa.com/api/doctor/prescriptions', payload, config);
+            const { data: createdPrescription } = await axios.post('http://localhost:5010/api/doctor/prescriptions', payload, config);
 
             // Finalize Lab Request
-            await axios.patch(`https://homecare.nidwa.com/api/lab/requests/${selectedRequest._id}/finalize`, {
+            await axios.patch(`http://localhost:5010/api/lab/requests/${selectedRequest._id}/finalize`, {
                 conclusion: diagnosis,
                 physicalExamination: physicalExam,
                 medicines: medicinesPayload,
@@ -177,7 +177,7 @@ const DoctorConsultation = () => {
             }, config);
 
             // Update Patient Status
-            await axios.patch(`https://homecare.nidwa.com/api/doctor/patients/${selectedRequest.patient?._id || selectedRequest.patient}/status`, { visitStatus: 'Outpatient' }, config);
+            await axios.patch(`http://localhost:5010/api/doctor/patients/${selectedRequest.patient?._id || selectedRequest.patient}/status`, { visitStatus: 'Outpatient' }, config);
 
             if (window.confirm('Consultation finalized! Patient sent to pharmacy. Would you like to print the report now?')) {
                 handlePrintResults({
@@ -201,7 +201,7 @@ const DoctorConsultation = () => {
     const handlePrintResults = async (request) => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`https://homecare.nidwa.com/api/lab/requests/${request._id}/print`, {}, config);
+            await axios.patch(`http://localhost:5010/api/lab/requests/${request._id}/print`, {}, config);
 
             const printWindow = window.open('', '', 'width=800,height=1000');
 
@@ -1032,6 +1032,7 @@ const DoctorConsultation = () => {
 };
 
 export default DoctorConsultation;
+
 
 
 

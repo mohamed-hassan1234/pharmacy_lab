@@ -18,7 +18,7 @@ const PharmacySales = () => {
             const config = {
                 headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` }
             };
-            const { data } = await axios.get('https://homecare.nidwa.com/api/inventory', config);
+            const { data } = await axios.get('http://localhost:5010/api/inventory', config);
             setMedicines(data);
         } catch (err) {
             console.error(err);
@@ -46,7 +46,7 @@ const PharmacySales = () => {
             const config = {
                 headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` }
             };
-            const { data } = await axios.post('https://homecare.nidwa.com/api/cashier/sales', {
+            const { data } = await axios.post('http://localhost:5010/api/cashier/sales', {
                 items: cart,
                 paymentMethod: 'Cash'
             }, config);
@@ -164,4 +164,5 @@ const PharmacySales = () => {
 };
 
 export default PharmacySales;
+
 

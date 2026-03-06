@@ -120,7 +120,7 @@ const DoctorConsultations = () => {
 
     const fetchCompletedConsultations = async () => {
         try {
-            const { data } = await axios.get('https://homecare.nidwa.com/api/lab/requests', getAuthConfig());
+            const { data } = await axios.get('http://localhost:5010/api/lab/requests', getAuthConfig());
             const completed = (Array.isArray(data) ? data : []).filter((r) => r.status === 'Completed' && r.doctorConclusion);
             setConsultations(completed);
         } catch (err) { console.error(err); }
@@ -128,7 +128,7 @@ const DoctorConsultations = () => {
 
     const fetchInventoryMedicines = async () => {
         try {
-            const { data } = await axios.get('https://homecare.nidwa.com/api/inventory/medicines', getAuthConfig());
+            const { data } = await axios.get('http://localhost:5010/api/inventory/medicines', getAuthConfig());
             setInventoryMedicines(Array.isArray(data) ? data : []);
         } catch (err) { console.error(err); }
     };
@@ -173,7 +173,7 @@ const DoctorConsultations = () => {
                 ? selectedConsultation.prescriptionId?._id
                 : selectedConsultation.prescriptionId;
 
-            const { data } = await axios.post('https://homecare.nidwa.com/api/cashier/sales', {
+            const { data } = await axios.post('http://localhost:5010/api/cashier/sales', {
                 items: built.items,
                 customerName: selectedConsultation.patientName,
                 customerId: null,
@@ -463,4 +463,5 @@ const DoctorConsultations = () => {
 };
 
 export default DoctorConsultations;
+
 

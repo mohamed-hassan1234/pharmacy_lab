@@ -45,7 +45,7 @@ const PharmacyPOS = () => {
     const fetchMedicines = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('https://homecare.nidwa.com/api/inventory/medicines', config);
+            const { data } = await axios.get('http://localhost:5010/api/inventory/medicines', config);
             setMedicines(data);
         } catch (err) { console.error(err); }
     };
@@ -53,7 +53,7 @@ const PharmacyPOS = () => {
     const fetchCustomers = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('https://homecare.nidwa.com/api/cashier/customers', config);
+            const { data } = await axios.get('http://localhost:5010/api/cashier/customers', config);
             setCustomers(data);
         } catch (err) { console.error(err); }
     };
@@ -61,7 +61,7 @@ const PharmacyPOS = () => {
     const fetchPrescriptions = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('https://homecare.nidwa.com/api/cashier/prescriptions', config);
+            const { data } = await axios.get('http://localhost:5010/api/cashier/prescriptions', config);
             setPrescriptions(data);
         } catch (err) { console.error(err); }
     };
@@ -97,7 +97,7 @@ const PharmacyPOS = () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
             const total = calculateTotal();
-            const { data } = await axios.post('https://homecare.nidwa.com/api/cashier/sales', {
+            const { data } = await axios.post('http://localhost:5010/api/cashier/sales', {
                 items: cart,
                 customerName: selectedCustomerId ? customers.find(c => c._id === selectedCustomerId)?.name : customerName,
                 customerId: selectedCustomerId || null,
@@ -356,4 +356,5 @@ const PharmacyPOS = () => {
 };
 
 export default PharmacyPOS;
+
 

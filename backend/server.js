@@ -15,8 +15,8 @@ app.use(express.json());
 app.use(
   cors({
     origin: [
-      "https://homecare.nidwa.com",
-      "https://www.homecare.nidwa.com",
+      "http://localhost:5010",
+      "http://127.0.0.1:5010",
       "http://localhost:5173",
       "http://127.0.0.1:5173",
       "https://lafoole.somsoftsystems.com",

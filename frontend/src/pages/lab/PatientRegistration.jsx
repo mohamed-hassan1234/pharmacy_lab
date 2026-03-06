@@ -21,7 +21,7 @@ const PatientRegistration = () => {
     const fetchPatients = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('https://homecare.nidwa.com/api/doctor/patients', config);
+            const { data } = await axios.get('http://localhost:5010/api/doctor/patients', config);
             setPatients(data);
         } catch (err) { console.error(err); }
     };
@@ -30,7 +30,7 @@ const PatientRegistration = () => {
         e.preventDefault();
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.post('https://homecare.nidwa.com/api/doctor/patients', formData, config);
+            await axios.post('http://localhost:5010/api/doctor/patients', formData, config);
             setShowForm(false);
             setFormData({ name: '', age: '', sex: 'Male', phone: '', address: '' });
             fetchPatients();
@@ -207,4 +207,5 @@ const PatientRegistration = () => {
 };
 
 export default PatientRegistration;
+
 

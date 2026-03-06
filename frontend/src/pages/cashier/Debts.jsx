@@ -17,7 +17,7 @@ const Debts = () => {
     const fetchDebts = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('https://homecare.nidwa.com/api/cashier/debts', config);
+            const { data } = await axios.get('http://localhost:5010/api/cashier/debts', config);
             setDebts(data);
         } catch (err) { console.error(err); }
         finally { setLoading(false); }
@@ -27,7 +27,7 @@ const Debts = () => {
         if (!paymentAmount || paymentAmount <= 0) return alert('Please enter a valid amount');
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`https://homecare.nidwa.com/api/cashier/debts/${payModal._id}`, { amountPaid: paymentAmount }, config);
+            await axios.patch(`http://localhost:5010/api/cashier/debts/${payModal._id}`, { amountPaid: paymentAmount }, config);
             setPayModal(null);
             setPaymentAmount('');
             fetchDebts();
@@ -176,4 +176,5 @@ const Debts = () => {
 };
 
 export default Debts;
+
 

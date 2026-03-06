@@ -1,25 +1,76 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FileBarChart, Printer, Download, DollarSign, TrendingUp, ShoppingBag, CreditCard, History, Package, Calendar } from 'lucide-react';
+import { Printer, DollarSign, TrendingUp, ShoppingBag, CreditCard, History, Package, Calendar } from 'lucide-react';
 
 import { convertUsdToSos, convertSosToUsd } from '../../utils/currency';
 
 const CashierReports = () => {
     const [sales, setSales] = useState({});
+    const [period, setPeriod] = useState('daily');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [appliedStartDate, setAppliedStartDate] = useState('');
+    const [appliedEndDate, setAppliedEndDate] = useState('');
     const [loading, setLoading] = useState(true);
     const formatUsd = (sosValue) => `$${convertSosToUsd(Number(sosValue) || 0)} USD`;
+    const periodOptions = [
+        { value: 'daily', label: 'Daily' },
+        { value: 'weekly', label: 'Weekly' },
+        { value: 'monthly', label: 'Monthly' },
+        { value: 'yearly', label: 'Yearly' }
+    ];
+
+    const calcDiff = (current, previous) => {
+        const currentValue = Number(current) || 0;
+        const previousValue = Number(previous) || 0;
+        const diff = currentValue - previousValue;
+        if (previousValue === 0) {
+            return { diff, percent: currentValue === 0 ? 0 : 100 };
+        }
+        return { diff, percent: Math.round((Math.abs(diff) / Math.abs(previousValue)) * 100) };
+    };
+
+    const revenueDiff = calcDiff(sales?.totalRevenue, sales?.previous?.totalRevenue);
+    const profitDiff = calcDiff(sales?.totalProfit, sales?.previous?.totalProfit);
 
     useEffect(() => {
         const fetchReport = async () => {
+            setLoading(true);
             try {
                 const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-                const { data } = await axios.get('https://homecare.nidwa.com/api/cashier/reports', config);
+                const params = new URLSearchParams();
+                params.set('period', period);
+                if (appliedStartDate && appliedEndDate) {
+                    params.set('startDate', appliedStartDate);
+                    params.set('endDate', appliedEndDate);
+                }
+                const { data } = await axios.get(`http://localhost:5010/api/cashier/reports?${params.toString()}`, config);
                 setSales(data);
             } catch (err) { console.error(err); }
             finally { setLoading(false); }
         };
         fetchReport();
-    }, []);
+    }, [period, appliedStartDate, appliedEndDate]);
+
+    const handleApplyDateFilter = () => {
+        if (!startDate || !endDate) {
+            alert('Please select both start date and end date.');
+            return;
+        }
+        if (new Date(endDate) < new Date(startDate)) {
+            alert('End date must be after or equal to start date.');
+            return;
+        }
+        setAppliedStartDate(startDate);
+        setAppliedEndDate(endDate);
+    };
+
+    const handleClearDateFilter = () => {
+        setStartDate('');
+        setEndDate('');
+        setAppliedStartDate('');
+        setAppliedEndDate('');
+    };
 
     if (loading) return <div className="p-10 text-center animate-pulse">Gathering financial data...</div>;
 
@@ -28,11 +79,75 @@ const CashierReports = () => {
             <div className="section-header flex flex-wrap justify-between items-center gap-3">
                 <div>
                     <h2 className="section-title">Store Performance</h2>
-                    <p className="section-subtitle">Simple financial overview for daily decisions.</p>
+                    <p className="section-subtitle">
+                        {sales?.periodRange?.currentLabel || 'Current period'} report from your real data.
+                    </p>
                 </div>
-                <button onClick={() => window.print()} className="btn-primary flex items-center gap-2 px-6 py-3 uppercase tracking-wide text-xs">
-                    <Printer size={18} /> <span className="font-black">Print Report</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                    {periodOptions.map((option) => (
+                        <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => setPeriod(option.value)}
+                            className={period === option.value ? 'btn-primary px-4 py-2 text-xs' : 'btn-secondary px-4 py-2 text-xs'}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                    <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="min-w-[145px]"
+                        aria-label="Start date"
+                    />
+                    <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="min-w-[145px]"
+                        aria-label="End date"
+                    />
+                    <button type="button" onClick={handleApplyDateFilter} className="btn-secondary px-4 py-2 text-xs">
+                        Apply Dates
+                    </button>
+                    <button type="button" onClick={handleClearDateFilter} className="btn-secondary px-4 py-2 text-xs">
+                        Clear
+                    </button>
+                    <button onClick={() => window.print()} className="btn-primary flex items-center gap-2 px-6 py-3 uppercase tracking-wide text-xs">
+                        <Printer size={18} /> <span className="font-black">Print Report</span>
+                    </button>
+                </div>
+            </div>
+
+            <div className="card bg-slate-50 border border-slate-200">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <p className="text-xs uppercase tracking-widest text-slate-500 font-bold">Period</p>
+                        <p className="text-sm font-semibold text-slate-800">
+                            {sales?.periodRange?.currentLabel || 'Current'} ({sales?.period || period})
+                        </p>
+                        {sales?.filterMode === 'custom' && (
+                            <p className="text-xs text-slate-500 mt-1">
+                                {sales?.periodRange?.startDate} to {sales?.periodRange?.endDate}
+                            </p>
+                        )}
+                    </div>
+                    <div>
+                        <p className="text-xs uppercase tracking-widest text-slate-500 font-bold">Revenue vs {sales?.periodRange?.previousLabel || 'Previous'}</p>
+                        <p className={`text-sm font-semibold ${revenueDiff.diff >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {revenueDiff.diff >= 0 ? '+' : ''}{(revenueDiff.diff || 0).toLocaleString()} SOS ({revenueDiff.percent}%)
+                        </p>
+                        <p className="text-xs text-slate-500">{formatUsd(revenueDiff.diff)}</p>
+                    </div>
+                    <div>
+                        <p className="text-xs uppercase tracking-widest text-slate-500 font-bold">Profit vs {sales?.periodRange?.previousLabel || 'Previous'}</p>
+                        <p className={`text-sm font-semibold ${profitDiff.diff >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {profitDiff.diff >= 0 ? '+' : ''}{(profitDiff.diff || 0).toLocaleString()} SOS ({profitDiff.percent}%)
+                        </p>
+                        <p className="text-xs text-slate-500">{formatUsd(profitDiff.diff)}</p>
+                    </div>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -75,13 +190,15 @@ const CashierReports = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-emerald-50 border-2 border-emerald-100 p-6 rounded-3xl">
-                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Cash Sales (SOS)</p>
+                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Cash Sales (SOS / USD)</p>
                     <p className="text-4xl font-black text-emerald-700">{sales?.cashRevenue?.toLocaleString() || 0}</p>
+                    <p className="text-xs font-black text-emerald-500 mt-1">{formatUsd(sales?.cashRevenue)}</p>
                     <p className="text-xs font-black text-emerald-500 mt-2">Paid instantly</p>
                 </div>
                 <div className="bg-orange-50 border-2 border-orange-100 p-6 rounded-3xl">
-                    <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1">Credit Sales (SOS)</p>
+                    <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1">Credit Sales (SOS / USD)</p>
                     <p className="text-4xl font-black text-orange-700">{sales?.creditRevenue?.toLocaleString() || 0}</p>
+                    <p className="text-xs font-black text-orange-500 mt-1">{formatUsd(sales?.creditRevenue)}</p>
                     <p className="text-xs font-black text-orange-500 mt-2">Recorded as debt/dayn</p>
                 </div>
             </div>
@@ -255,4 +372,5 @@ const CashierReports = () => {
 };
 
 export default CashierReports;
+
 

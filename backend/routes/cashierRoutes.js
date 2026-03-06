@@ -9,6 +9,123 @@ const Supplier = require('../models/Supplier');
 const LabRequest = require('../models/LabRequest');
 
 const Prescription = require('../models/Prescription');
+const REPORT_PERIODS = new Set(['daily', 'weekly', 'monthly', 'yearly']);
+
+const parseDateOnly = (value) => {
+    if (!value || typeof value !== 'string') return null;
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const date = new Date(year, month - 1, day);
+    if (
+        date.getFullYear() !== year ||
+        date.getMonth() !== month - 1 ||
+        date.getDate() !== day
+    ) {
+        return null;
+    }
+    return date;
+};
+
+const getPeriodRanges = (period, now = new Date()) => {
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (period === 'daily') {
+        const currentStart = startOfToday;
+        const currentEnd = new Date(currentStart);
+        currentEnd.setDate(currentEnd.getDate() + 1);
+        const previousStart = new Date(currentStart);
+        previousStart.setDate(previousStart.getDate() - 1);
+        return {
+            currentStart,
+            currentEnd,
+            previousStart,
+            previousEnd: currentStart,
+            currentLabel: 'Today',
+            previousLabel: 'Yesterday'
+        };
+    }
+
+    if (period === 'weekly') {
+        const weekday = (now.getDay() + 6) % 7; // Monday = 0
+        const currentStart = new Date(startOfToday);
+        currentStart.setDate(currentStart.getDate() - weekday);
+        const currentEnd = new Date(currentStart);
+        currentEnd.setDate(currentEnd.getDate() + 7);
+        const previousStart = new Date(currentStart);
+        previousStart.setDate(previousStart.getDate() - 7);
+        return {
+            currentStart,
+            currentEnd,
+            previousStart,
+            previousEnd: currentStart,
+            currentLabel: 'This Week',
+            previousLabel: 'Last Week'
+        };
+    }
+
+    if (period === 'monthly') {
+        const currentStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const currentEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        return {
+            currentStart,
+            currentEnd,
+            previousStart,
+            previousEnd: currentStart,
+            currentLabel: 'This Month',
+            previousLabel: 'Last Month'
+        };
+    }
+
+    const currentStart = new Date(now.getFullYear(), 0, 1);
+    const currentEnd = new Date(now.getFullYear() + 1, 0, 1);
+    const previousStart = new Date(now.getFullYear() - 1, 0, 1);
+    return {
+        currentStart,
+        currentEnd,
+        previousStart,
+        previousEnd: currentStart,
+        currentLabel: 'This Year',
+        previousLabel: 'Last Year'
+    };
+};
+
+const getCustomRanges = (startDate, endDate) => {
+    const currentStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const currentEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + 1);
+    const durationMs = currentEnd.getTime() - currentStart.getTime();
+    const previousEnd = currentStart;
+    const previousStart = new Date(previousEnd.getTime() - durationMs);
+
+    return {
+        currentStart,
+        currentEnd,
+        previousStart,
+        previousEnd,
+        currentLabel: 'Selected Range',
+        previousLabel: 'Previous Range'
+    };
+};
+
+const summarizeSales = (sales = []) => {
+    const totalRevenue = sales.reduce((acc, s) => acc + s.totalAmount, 0);
+    const totalProfit = sales.reduce((acc, s) => acc + s.profit, 0);
+    const totalCost = sales.reduce((acc, s) => acc + s.totalCost, 0);
+    const cashRevenue = sales.filter(s => s.paymentType === 'CASH').reduce((acc, s) => acc + s.totalAmount, 0);
+    const creditRevenue = sales.filter(s => s.paymentType === 'CREDIT').reduce((acc, s) => acc + s.totalAmount, 0);
+
+    return {
+        totalRevenue,
+        totalProfit,
+        totalCost,
+        cashRevenue,
+        creditRevenue,
+        orderCount: sales.length
+    };
+};
 
 // Process Sale (BOX or UNIT logic)
 router.post('/sales', protect, authorize('Cashier', 'Admin'), async (req, res) => {
@@ -264,15 +381,53 @@ router.get('/dashboard', protect, authorize('Cashier', 'Admin'), async (req, res
 // Get Cashier Reports
 router.get('/reports', protect, authorize('Cashier', 'Admin'), async (req, res) => {
     try {
-        const sales = await Sale.find({ cashierId: req.user._id });
-        const debts = await Debt.find({ status: { $ne: 'PAID' } });
+        const requestedPeriod = String(req.query.period || 'daily').toLowerCase();
+        const period = REPORT_PERIODS.has(requestedPeriod) ? requestedPeriod : 'daily';
+        const startDateQuery = req.query.startDate ? String(req.query.startDate) : '';
+        const endDateQuery = req.query.endDate ? String(req.query.endDate) : '';
 
-        const totalRevenue = sales.reduce((acc, s) => acc + s.totalAmount, 0);
-        const totalProfit = sales.reduce((acc, s) => acc + s.profit, 0);
-        const totalCost = sales.reduce((acc, s) => acc + s.totalCost, 0);
+        let ranges = getPeriodRanges(period);
+        let filterMode = 'period';
+
+        if (startDateQuery || endDateQuery) {
+            if (!startDateQuery || !endDateQuery) {
+                return res.status(400).json({ message: 'Both startDate and endDate are required for date filtering.' });
+            }
+
+            const startDate = parseDateOnly(startDateQuery);
+            const endDate = parseDateOnly(endDateQuery);
+
+            if (!startDate || !endDate) {
+                return res.status(400).json({ message: 'Invalid date format. Use YYYY-MM-DD.' });
+            }
+            if (endDate < startDate) {
+                return res.status(400).json({ message: 'endDate must be on or after startDate.' });
+            }
+
+            ranges = getCustomRanges(startDate, endDate);
+            filterMode = 'custom';
+        }
+
+        const sales = await Sale.find({
+            cashierId: req.user._id,
+            createdAt: { $gte: ranges.currentStart, $lt: ranges.currentEnd }
+        });
+
+        const previousSales = await Sale.find({
+            cashierId: req.user._id,
+            createdAt: { $gte: ranges.previousStart, $lt: ranges.previousEnd }
+        });
+
+        const debts = await Debt.find({ status: { $ne: 'PAID' } });
+        const currentSummary = summarizeSales(sales);
+        const previousSummary = summarizeSales(previousSales);
+
+        const totalRevenue = currentSummary.totalRevenue;
+        const totalProfit = currentSummary.totalProfit;
+        const totalCost = currentSummary.totalCost;
         const totalDebts = debts.reduce((acc, d) => acc + d.remainingBalance, 0);
-        const cashRevenue = sales.filter(s => s.paymentType === 'CASH').reduce((acc, s) => acc + s.totalAmount, 0);
-        const creditRevenue = sales.filter(s => s.paymentType === 'CREDIT').reduce((acc, s) => acc + s.totalAmount, 0);
+        const cashRevenue = currentSummary.cashRevenue;
+        const creditRevenue = currentSummary.creditRevenue;
 
         // REAL-TIME INVENTORY AUDIT (TRUSTED DATA)
         const allMeds = await Medicine.find();
@@ -288,7 +443,10 @@ router.get('/reports', protect, authorize('Cashier', 'Admin'), async (req, res) 
             totalLoosePills += (med.totalUnitsInStock % med.unitsPerBox);
         });
 
-        const recentTransactions = await Sale.find({ cashierId: req.user._id })
+        const recentTransactions = await Sale.find({
+            cashierId: req.user._id,
+            createdAt: { $gte: ranges.currentStart, $lt: ranges.currentEnd }
+        })
             .populate({
                 path: 'prescriptionId',
                 select: 'diagnosis physicalExamination patientId',
@@ -312,12 +470,33 @@ router.get('/reports', protect, authorize('Cashier', 'Admin'), async (req, res) 
             }));
 
         res.json({
+            period,
+            filterMode,
+            periodRange: {
+                currentLabel: ranges.currentLabel,
+                previousLabel: ranges.previousLabel,
+                currentStart: ranges.currentStart,
+                currentEnd: ranges.currentEnd,
+                previousStart: ranges.previousStart,
+                previousEnd: ranges.previousEnd,
+                startDate: startDateQuery || null,
+                endDate: endDateQuery || null
+            },
             totalRevenue,
             totalProfit,
             totalCost,
             totalDebts,
             cashRevenue,
             creditRevenue,
+            orderCount: currentSummary.orderCount,
+            previous: {
+                totalRevenue: previousSummary.totalRevenue,
+                totalProfit: previousSummary.totalProfit,
+                totalCost: previousSummary.totalCost,
+                cashRevenue: previousSummary.cashRevenue,
+                creditRevenue: previousSummary.creditRevenue,
+                orderCount: previousSummary.orderCount
+            },
             investedStockValue, // Money currently sitting on the shelf
             totalFullBoxes,
             totalLoosePills,
