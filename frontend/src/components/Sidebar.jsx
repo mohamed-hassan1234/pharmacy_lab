@@ -34,6 +34,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                 label: 'Management',
                 items: [
                     { name: 'Financials', icon: TrendingUp, path: '/admin/finance' },
+                    { name: 'Reports', icon: FileBarChart, path: '/admin/reports' },
                     { name: 'Staff', icon: Users, path: '/admin/staff' },
                     { name: 'Inventory', icon: Package, path: '/admin/inventory' }
                 ]
@@ -129,8 +130,8 @@ const Sidebar = ({ isOpen, onClose }) => {
                         {viewMode === 'pharmacy' ? <Stethoscope size={22} /> : <FlaskConical size={22} />}
                     </div>
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Connect Plus</p>
-                        <p className="text-lg font-bold text-white">{viewMode === 'pharmacy' ? 'Pharmacy' : 'Laboratory'}</p>
+                        <p className="text-xs font-black uppercase tracking-[0.18em] text-red-100">DR. SAALIM</p>
+                        <p className="text-lg font-bold text-green-200">{viewMode === 'pharmacy' ? 'Polyclinic' : 'Laboratory Wing'}</p>
                     </div>
                 </div>
                 <button type="button" className="btn-secondary px-2.5 py-2 lg:hidden" onClick={onClose} aria-label="Close menu">

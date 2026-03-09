@@ -13,6 +13,656 @@ const Prescription = require('../models/Prescription');
 
 const STAFF_ROLES = ['Cashier', 'Doctor', 'Lab Technician'];
 const DEFAULT_PASSWORD = '1234';
+const REPORT_PERIODS = new Set(['daily', 'weekly', 'monthly', 'yearly']);
+const SOS_PER_USD = Number(process.env.SOS_PER_USD || 57000);
+
+const parseDateOnly = (value) => {
+    if (!value || typeof value !== 'string') return null;
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const date = new Date(year, month - 1, day);
+
+    if (
+        date.getFullYear() !== year ||
+        date.getMonth() !== month - 1 ||
+        date.getDate() !== day
+    ) {
+        return null;
+    }
+
+    return date;
+};
+
+const getPeriodRanges = (period, now = new Date()) => {
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (period === 'daily') {
+        const currentStart = startOfToday;
+        const currentEnd = new Date(currentStart);
+        currentEnd.setDate(currentEnd.getDate() + 1);
+        const previousStart = new Date(currentStart);
+        previousStart.setDate(previousStart.getDate() - 1);
+
+        return {
+            currentStart,
+            currentEnd,
+            previousStart,
+            previousEnd: currentStart,
+            currentLabel: 'Today',
+            previousLabel: 'Yesterday'
+        };
+    }
+
+    if (period === 'weekly') {
+        const weekday = (now.getDay() + 6) % 7;
+        const currentStart = new Date(startOfToday);
+        currentStart.setDate(currentStart.getDate() - weekday);
+        const currentEnd = new Date(currentStart);
+        currentEnd.setDate(currentEnd.getDate() + 7);
+        const previousStart = new Date(currentStart);
+        previousStart.setDate(previousStart.getDate() - 7);
+
+        return {
+            currentStart,
+            currentEnd,
+            previousStart,
+            previousEnd: currentStart,
+            currentLabel: 'This Week',
+            previousLabel: 'Last Week'
+        };
+    }
+
+    if (period === 'monthly') {
+        const currentStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const currentEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+        return {
+            currentStart,
+            currentEnd,
+            previousStart,
+            previousEnd: currentStart,
+            currentLabel: 'This Month',
+            previousLabel: 'Last Month'
+        };
+    }
+
+    const currentStart = new Date(now.getFullYear(), 0, 1);
+    const currentEnd = new Date(now.getFullYear() + 1, 0, 1);
+    const previousStart = new Date(now.getFullYear() - 1, 0, 1);
+
+    return {
+        currentStart,
+        currentEnd,
+        previousStart,
+        previousEnd: currentStart,
+        currentLabel: 'This Year',
+        previousLabel: 'Last Year'
+    };
+};
+
+const getCustomRanges = (startDate, endDate) => {
+    const currentStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const currentEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + 1);
+    const durationMs = currentEnd.getTime() - currentStart.getTime();
+    const previousEnd = currentStart;
+    const previousStart = new Date(previousEnd.getTime() - durationMs);
+
+    return {
+        currentStart,
+        currentEnd,
+        previousStart,
+        previousEnd,
+        currentLabel: 'Selected Range',
+        previousLabel: 'Previous Range'
+    };
+};
+
+const summarizeSales = (sales = []) => {
+    const totalRevenue = sales.reduce((acc, sale) => acc + sale.totalAmount, 0);
+    const totalProfit = sales.reduce((acc, sale) => acc + sale.profit, 0);
+    const totalCost = sales.reduce((acc, sale) => acc + sale.totalCost, 0);
+    const cashRevenue = sales
+        .filter((sale) => sale.paymentType === 'CASH')
+        .reduce((acc, sale) => acc + sale.totalAmount, 0);
+    const creditRevenue = sales
+        .filter((sale) => sale.paymentType === 'CREDIT')
+        .reduce((acc, sale) => acc + sale.totalAmount, 0);
+
+    return {
+        totalRevenue,
+        totalProfit,
+        totalCost,
+        cashRevenue,
+        creditRevenue,
+        orderCount: sales.length
+    };
+};
+
+const SUPPORTED_CURRENCIES = ['SOS', 'USD'];
+
+const normalizeCurrency = (value, fallback = 'SOS') => {
+    if (!value || typeof value !== 'string') return fallback;
+
+    const normalized = value.trim().toUpperCase();
+    if (normalized === 'USD' || normalized === '$') return 'USD';
+    if (normalized === 'SOS' || normalized === 'SHILLING' || normalized === 'SHILLINGS') return 'SOS';
+
+    return fallback;
+};
+
+const createCurrencyBucket = () => ({
+    SOS: 0,
+    USD: 0
+});
+
+const getSaleCurrency = (sale = {}) => {
+    const directCurrency = normalizeCurrency(
+        sale.currency ||
+        sale.currencyCode ||
+        sale.saleCurrency ||
+        sale.totalCurrency ||
+        sale.pricingCurrency,
+        null
+    );
+
+    if (directCurrency) {
+        return directCurrency;
+    }
+
+    const itemCurrencies = Array.isArray(sale.items)
+        ? sale.items
+            .map((item) => normalizeCurrency(
+                item?.currency ||
+                item?.currencyCode ||
+                item?.saleCurrency ||
+                item?.priceCurrency ||
+                item?.unitCurrency,
+                null
+            ))
+            .filter(Boolean)
+        : [];
+
+    if (itemCurrencies.length > 0 && itemCurrencies.every((currency) => currency === itemCurrencies[0])) {
+        return itemCurrencies[0];
+    }
+
+    return 'SOS';
+};
+
+const getDebtCurrency = (debt = {}) => normalizeCurrency(
+    debt.currency ||
+    debt.currencyCode ||
+    debt.saleCurrency ||
+    debt.balanceCurrency,
+    'SOS'
+);
+
+const summarizeCurrencyTotals = (sales = [], debts = [], paymentEvents = []) => {
+    const totals = {
+        totalRevenue: createCurrencyBucket(),
+        totalProfit: createCurrencyBucket(),
+        totalCost: createCurrencyBucket(),
+        cashRevenue: createCurrencyBucket(),
+        creditRevenue: createCurrencyBucket(),
+        totalDebts: createCurrencyBucket(),
+        debtCollectionsAmount: createCurrencyBucket(),
+        actualMoneyReceived: createCurrencyBucket()
+    };
+
+    sales.forEach((sale) => {
+        const currency = getSaleCurrency(sale);
+        const totalAmount = Number(sale.totalAmount) || 0;
+        const totalProfit = Number(sale.profit) || 0;
+        const totalCost = Number(sale.totalCost) || 0;
+
+        totals.totalRevenue[currency] += totalAmount;
+        totals.totalProfit[currency] += totalProfit;
+        totals.totalCost[currency] += totalCost;
+
+        if (sale.paymentType === 'CASH') {
+            totals.cashRevenue[currency] += totalAmount;
+            totals.actualMoneyReceived[currency] += totalAmount;
+        } else if (sale.paymentType === 'CREDIT') {
+            totals.creditRevenue[currency] += totalAmount;
+        }
+    });
+
+    debts
+        .filter((debt) => debt.status !== 'PAID')
+        .forEach((debt) => {
+            const currency = getDebtCurrency(debt);
+            totals.totalDebts[currency] += Number(debt.remainingBalance) || 0;
+        });
+
+    paymentEvents.forEach((entry) => {
+        const currency = normalizeCurrency(entry.currency, 'SOS');
+        const amount = Number(entry.amount) || 0;
+        totals.debtCollectionsAmount[currency] += amount;
+        totals.actualMoneyReceived[currency] += amount;
+    });
+
+    return totals;
+};
+
+const toNumber = (...values) => {
+    for (const value of values) {
+        const number = Number(value);
+        if (Number.isFinite(number)) {
+            return number;
+        }
+    }
+
+    return 0;
+};
+
+const almostEqual = (left, right, epsilon = 0.01) => Math.abs(left - right) <= epsilon;
+
+const getItemQuantity = (item = {}) => {
+    const quantity = toNumber(
+        item.quantity,
+        item.units,
+        item.unitsSold,
+        item.boxes,
+        item.qty,
+        1
+    );
+
+    return quantity > 0 ? quantity : 1;
+};
+
+const normalizeMedicineName = (value) => String(value || '')
+    .toLowerCase()
+    .replace(/\sx\d+$/i, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const getMedicineLookup = (medicines = []) => {
+    const byId = new Map();
+    const byName = new Map();
+    const entries = [];
+
+    medicines.forEach((medicine) => {
+        if (medicine?._id) {
+            byId.set(String(medicine._id), medicine);
+        }
+
+        [
+            medicine?.name,
+            medicine?.medicineName,
+            medicine?.productName,
+            medicine?.title
+        ]
+            .filter(Boolean)
+            .forEach((value) => {
+                const rawName = String(value).trim().toLowerCase();
+                const normalizedName = normalizeMedicineName(value);
+                byName.set(rawName, medicine);
+
+                if (normalizedName) {
+                    byName.set(normalizedName, medicine);
+                    entries.push({ normalizedName, medicine });
+                }
+            });
+    });
+
+    return { byId, byName, entries };
+};
+
+const getMedicineForItem = (item = {}, medicineLookup = { byId: new Map(), byName: new Map(), entries: [] }) => {
+    const candidateIds = [
+        item.medicineId,
+        item.medicine,
+        item.medicine?._id,
+        item.medicine?._id?.toString?.(),
+        item.productId,
+        item.itemId
+    ].filter(Boolean);
+
+    for (const candidateId of candidateIds) {
+        const foundById = medicineLookup.byId.get(String(candidateId));
+        if (foundById) {
+            return foundById;
+        }
+    }
+
+    const candidateNames = [
+        item.medicineName,
+        item.name,
+        typeof item.medicine === 'string' ? item.medicine : null,
+        item.medicine?.name,
+        item.productName,
+        item.title
+    ].filter(Boolean);
+
+    for (const candidateName of candidateNames) {
+        const rawName = String(candidateName).trim().toLowerCase();
+        const normalizedName = normalizeMedicineName(candidateName);
+        const foundByName = medicineLookup.byName.get(rawName) || medicineLookup.byName.get(normalizedName);
+        if (foundByName) {
+            return foundByName;
+        }
+
+        const fuzzyMatch = medicineLookup.entries.find(({ normalizedName: entryName }) =>
+            entryName === normalizedName ||
+            entryName.includes(normalizedName) ||
+            normalizedName.includes(entryName)
+        );
+
+        if (fuzzyMatch) {
+            return fuzzyMatch.medicine;
+        }
+    }
+
+    return null;
+};
+
+const flattenNumericEntries = (value, prefix = '', seen = new Set()) => {
+    if (!value || typeof value !== 'object') {
+        return [];
+    }
+
+    if (seen.has(value)) {
+        return [];
+    }
+
+    seen.add(value);
+
+    return Object.entries(value).flatMap(([key, nestedValue]) => {
+        const nextKey = prefix ? `${prefix}.${key}` : key;
+
+        if (typeof nestedValue === 'number' && Number.isFinite(nestedValue)) {
+            return [{ key: nextKey.toLowerCase(), value: nestedValue }];
+        }
+
+        if (typeof nestedValue === 'string') {
+            const numeric = Number(nestedValue);
+            if (Number.isFinite(numeric) && nestedValue.trim() !== '') {
+                return [{ key: nextKey.toLowerCase(), value: numeric }];
+            }
+        }
+
+        if (nestedValue && typeof nestedValue === 'object') {
+            return flattenNumericEntries(nestedValue, nextKey, seen);
+        }
+
+        return [];
+    });
+};
+
+const findMedicinePrice = (medicine, keywordGroups) => {
+    const numericEntries = flattenNumericEntries(medicine);
+
+    for (const keywords of keywordGroups) {
+        const match = numericEntries.find(({ key }) => keywords.every((keyword) => key.includes(keyword)));
+        if (match && match.value > 0) {
+            return match.value;
+        }
+    }
+
+    return 0;
+};
+
+const inferItemUsdAmount = (item = {}, medicine) => {
+    const quantity = getItemQuantity(item);
+
+    const directUsdTotal = toNumber(
+        item.totalPriceUSD,
+        item.totalAmountUSD,
+        item.lineTotalUSD,
+        item.subtotalUSD
+    );
+
+    if (directUsdTotal > 0) {
+        return directUsdTotal;
+    }
+
+    const directUsdUnitPrice = toNumber(
+        item.unitPriceUSD,
+        item.priceUSD,
+        item.sellingPricePerUnitUSD
+    );
+
+    if (directUsdUnitPrice > 0) {
+        return directUsdUnitPrice * quantity;
+    }
+
+    const directUsdBoxPrice = toNumber(
+        item.boxPriceUSD,
+        item.sellingPricePerBoxUSD
+    );
+
+    const lineTotalSOS = toNumber(
+        item.totalPrice,
+        item.totalAmount,
+        item.lineTotal,
+        item.subtotal
+    );
+
+    const unitPriceSOS = toNumber(
+        item.unitPrice,
+        item.price,
+        item.unitPriceSOS,
+        item.priceSOS,
+        item.sellingPricePerUnitSOS
+    );
+
+    if (directUsdBoxPrice > 0) {
+        const mode = String(item.saleUnit || item.unitType || item.quantityType || '').toUpperCase();
+        if (mode === 'BOX' || mode === 'BOXES') {
+            return directUsdBoxPrice * quantity;
+        }
+    }
+
+    if (!medicine) {
+        return 0;
+    }
+
+    const medicineBoxUsd = toNumber(
+        medicine.sellingPricePerBoxUSD,
+        medicine.salePricePerBoxUSD,
+        findMedicinePrice(medicine, [['selling', 'box', 'usd'], ['box', 'usd']])
+    );
+    const medicineUnitUsd = toNumber(
+        medicine.sellingPricePerUnitUSD,
+        medicine.salePricePerUnitUSD,
+        findMedicinePrice(medicine, [['selling', 'unit', 'usd'], ['unit', 'usd']])
+    );
+    const medicineBoxSos = toNumber(
+        medicine.sellingPricePerBoxSOS,
+        medicine.salePricePerBoxSOS,
+        findMedicinePrice(medicine, [['selling', 'box', 'sos'], ['box', 'sos']])
+    );
+    const medicineUnitSos = toNumber(
+        medicine.sellingPricePerUnitSOS,
+        medicine.salePricePerUnitSOS,
+        findMedicinePrice(medicine, [['selling', 'unit', 'sos'], ['unit', 'sos']])
+    );
+    const mode = String(item.saleUnit || item.unitType || item.quantityType || '').toUpperCase();
+
+    if ((mode === 'BOX' || mode === 'BOXES') && medicineBoxUsd > 0) {
+        return medicineBoxUsd * quantity;
+    }
+
+    if ((mode === 'UNIT' || mode === 'PILL' || mode === 'PIECE') && medicineUnitUsd > 0) {
+        return medicineUnitUsd * quantity;
+    }
+
+    if (lineTotalSOS > 0 && medicineBoxSos > 0 && medicineBoxUsd > 0 && almostEqual(lineTotalSOS, medicineBoxSos * quantity)) {
+        return medicineBoxUsd * quantity;
+    }
+
+    if (lineTotalSOS > 0 && medicineUnitSos > 0 && medicineUnitUsd > 0 && almostEqual(lineTotalSOS, medicineUnitSos * quantity)) {
+        return medicineUnitUsd * quantity;
+    }
+
+    if (unitPriceSOS > 0 && medicineBoxSos > 0 && medicineBoxUsd > 0 && almostEqual(unitPriceSOS, medicineBoxSos)) {
+        return medicineBoxUsd * quantity;
+    }
+
+    if (unitPriceSOS > 0 && medicineUnitSos > 0 && medicineUnitUsd > 0 && almostEqual(unitPriceSOS, medicineUnitSos)) {
+        return medicineUnitUsd * quantity;
+    }
+
+    return 0;
+};
+
+const inferUsdFromSaleTotal = (sale = {}, item = {}, medicine) => {
+    if (!medicine) {
+        return 0;
+    }
+
+    const quantity = getItemQuantity(item);
+    const saleTotalSOS = toNumber(sale.totalAmount);
+
+    if (saleTotalSOS <= 0) {
+        return 0;
+    }
+
+    const medicineBoxUsd = toNumber(
+        medicine.sellingPricePerBoxUSD,
+        medicine.salePricePerBoxUSD,
+        findMedicinePrice(medicine, [['selling', 'box', 'usd'], ['box', 'usd']])
+    );
+    const medicineUnitUsd = toNumber(
+        medicine.sellingPricePerUnitUSD,
+        medicine.salePricePerUnitUSD,
+        findMedicinePrice(medicine, [['selling', 'unit', 'usd'], ['unit', 'usd']])
+    );
+    const medicineBoxSos = toNumber(
+        medicine.sellingPricePerBoxSOS,
+        medicine.salePricePerBoxSOS,
+        findMedicinePrice(medicine, [['selling', 'box', 'sos'], ['box', 'sos']])
+    );
+    const medicineUnitSos = toNumber(
+        medicine.sellingPricePerUnitSOS,
+        medicine.salePricePerUnitSOS,
+        findMedicinePrice(medicine, [['selling', 'unit', 'sos'], ['unit', 'sos']])
+    );
+
+    if (medicineBoxSos > 0 && medicineBoxUsd > 0 && almostEqual(saleTotalSOS, medicineBoxSos * quantity)) {
+        return medicineBoxUsd * quantity;
+    }
+
+    if (medicineUnitSos > 0 && medicineUnitUsd > 0 && almostEqual(saleTotalSOS, medicineUnitSos * quantity)) {
+        return medicineUnitUsd * quantity;
+    }
+
+    return 0;
+};
+
+const getSaleUsdAmount = (sale = {}, medicineLookup) => {
+    const saleCurrency = getSaleCurrency(sale);
+    const totalAmount = toNumber(sale.totalAmount);
+
+    if (saleCurrency === 'USD' && totalAmount > 0) {
+        return totalAmount;
+    }
+
+    if (!Array.isArray(sale.items) || sale.items.length === 0) {
+        return 0;
+    }
+
+    if (sale.items.length === 1) {
+        const item = sale.items[0];
+        const medicine = getMedicineForItem(item, medicineLookup);
+        const directItemUsd = inferItemUsdAmount(item, medicine);
+
+        if (directItemUsd > 0) {
+            return directItemUsd;
+        }
+
+        const saleMatchedUsd = inferUsdFromSaleTotal(sale, item, medicine);
+        if (saleMatchedUsd > 0) {
+            return saleMatchedUsd;
+        }
+    }
+
+    return sale.items.reduce((acc, item) => {
+        const medicine = getMedicineForItem(item, medicineLookup);
+        return acc + inferItemUsdAmount(item, medicine);
+    }, 0);
+};
+
+const getSalePricingSnapshot = (sale = {}, medicineLookup) => {
+    if (!Array.isArray(sale.items) || sale.items.length !== 1) {
+        return null;
+    }
+
+    const item = sale.items[0];
+    const medicine = getMedicineForItem(item, medicineLookup);
+
+    if (!medicine) {
+        return null;
+    }
+
+    return {
+        medicineName: medicine.name || medicine.medicineName || medicine.productName || '',
+        quantity: getItemQuantity(item),
+        sellingPricePerBoxUSD: toNumber(
+            medicine.sellingPricePerBoxUSD,
+            medicine.salePricePerBoxUSD,
+            findMedicinePrice(medicine, [['selling', 'box', 'usd'], ['box', 'usd']])
+        ),
+        sellingPricePerUnitUSD: toNumber(
+            medicine.sellingPricePerUnitUSD,
+            medicine.salePricePerUnitUSD,
+            findMedicinePrice(medicine, [['selling', 'unit', 'usd'], ['unit', 'usd']])
+        ),
+        sellingPricePerBoxSOS: toNumber(
+            medicine.sellingPricePerBoxSOS,
+            medicine.salePricePerBoxSOS,
+            findMedicinePrice(medicine, [['selling', 'box', 'sos'], ['box', 'sos']])
+        ),
+        sellingPricePerUnitSOS: toNumber(
+            medicine.sellingPricePerUnitSOS,
+            medicine.salePricePerUnitSOS,
+            findMedicinePrice(medicine, [['selling', 'unit', 'sos'], ['unit', 'sos']])
+        )
+    };
+};
+
+const getDebtPaymentEvents = (debts = []) => debts.flatMap((debt) => {
+    const history = Array.isArray(debt.paymentHistory) ? debt.paymentHistory : [];
+
+    if (history.length > 0) {
+        return history.map((entry) => ({
+            debtId: debt._id,
+            customerId: debt.customerId || null,
+            customerName: debt.customerName,
+            invoiceNumber: debt.invoiceNumber,
+            amount: Number(entry.amount) || 0,
+            paidAt: entry.paidAt || debt.updatedAt || debt.createdAt,
+            source: entry.source || 'COLLECTION',
+            currency: normalizeCurrency(entry.currency || debt.currency || debt.currencyCode || debt.saleCurrency, 'SOS')
+        }));
+    }
+
+    if ((Number(debt.paidAmount) || 0) > 0) {
+        return [{
+            debtId: debt._id,
+            customerId: debt.customerId || null,
+            customerName: debt.customerName,
+            invoiceNumber: debt.invoiceNumber,
+            amount: Number(debt.paidAmount) || 0,
+            paidAt: debt.createdAt,
+            source: 'INITIAL',
+            currency: getDebtCurrency(debt)
+        }];
+    }
+
+    return [];
+});
+
+const sumPaymentsInRange = (debts = [], start, end) => getDebtPaymentEvents(debts)
+    .filter((entry) => {
+        const paidAt = new Date(entry.paidAt);
+        return paidAt >= start && paidAt < end;
+    });
 
 // @desc    Get Admin Dashboard Stats (Monitor Everything)
 router.get('/dashboard', protect, authorize('Admin'), async (req, res) => {
@@ -53,6 +703,7 @@ router.get('/dashboard', protect, authorize('Admin'), async (req, res) => {
 
         // Inventory Stats
         const allMedicines = await Medicine.find();
+        const medicineLookup = getMedicineLookup(allMedicines);
         const totalMedicines = allMedicines.length;
         const outOfStock = allMedicines.filter(m => m.totalUnitsInStock < 5).length;
         const inventoryNow = new Date();
@@ -424,6 +1075,177 @@ router.get('/debts', protect, authorize('Admin'), async (req, res) => {
     try {
         const debts = await Debt.find().sort({ createdAt: -1 });
         res.json(debts);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Get Admin Reports (System-wide)
+router.get('/reports', protect, authorize('Admin'), async (req, res) => {
+    try {
+        res.set('Cache-Control', 'no-store');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+
+        const requestedPeriod = String(req.query.period || 'daily').toLowerCase();
+        const period = REPORT_PERIODS.has(requestedPeriod) ? requestedPeriod : 'daily';
+        const startDateQuery = req.query.startDate ? String(req.query.startDate) : '';
+        const endDateQuery = req.query.endDate ? String(req.query.endDate) : '';
+
+        let ranges = getPeriodRanges(period);
+        let filterMode = 'period';
+
+        if (startDateQuery || endDateQuery) {
+            if (!startDateQuery || !endDateQuery) {
+                return res.status(400).json({ message: 'Both startDate and endDate are required for date filtering.' });
+            }
+
+            const startDate = parseDateOnly(startDateQuery);
+            const endDate = parseDateOnly(endDateQuery);
+
+            if (!startDate || !endDate) {
+                return res.status(400).json({ message: 'Invalid date format. Use YYYY-MM-DD.' });
+            }
+
+            if (endDate < startDate) {
+                return res.status(400).json({ message: 'endDate must be on or after startDate.' });
+            }
+
+            ranges = getCustomRanges(startDate, endDate);
+            filterMode = 'custom';
+        }
+
+        const salesFilter = {
+            createdAt: { $gte: ranges.currentStart, $lt: ranges.currentEnd }
+        };
+        const previousSalesFilter = {
+            createdAt: { $gte: ranges.previousStart, $lt: ranges.previousEnd }
+        };
+
+        const sales = await Sale.find(salesFilter);
+        const previousSales = await Sale.find(previousSalesFilter);
+        const debts = await Debt.find();
+        const currentSummary = summarizeSales(sales);
+        const previousSummary = summarizeSales(previousSales);
+        const currentDebtPayments = sumPaymentsInRange(debts, ranges.currentStart, ranges.currentEnd);
+        const previousDebtPayments = sumPaymentsInRange(debts, ranges.previousStart, ranges.previousEnd);
+        const currencyTotals = summarizeCurrencyTotals(sales, debts, currentDebtPayments);
+        const previousCurrencyTotals = summarizeCurrencyTotals(previousSales, debts, previousDebtPayments);
+        const debtCollectionsAmount = currentDebtPayments.reduce((acc, entry) => acc + entry.amount, 0);
+        const previousDebtCollectionsAmount = previousDebtPayments.reduce((acc, entry) => acc + entry.amount, 0);
+        const actualMoneyReceived = currentSummary.cashRevenue + debtCollectionsAmount;
+        const previousActualMoneyReceived = previousSummary.cashRevenue + previousDebtCollectionsAmount;
+
+        const allMedicines = await Medicine.find();
+        const medicineLookup = getMedicineLookup(allMedicines);
+        let investedStockValue = 0;
+        let totalFullBoxes = 0;
+        let totalLoosePills = 0;
+
+        allMedicines.forEach((medicine) => {
+            const purchasePricePerUnit = medicine.purchasePricePerBox / medicine.unitsPerBox;
+            investedStockValue += medicine.totalUnitsInStock * purchasePricePerUnit;
+            totalFullBoxes += medicine.boxesInStock || 0;
+            totalLoosePills += (medicine.totalUnitsInStock || 0) % medicine.unitsPerBox;
+        });
+
+        const recentTransactions = await Sale.find(salesFilter)
+            .populate('cashierId', 'name email')
+            .populate({
+                path: 'prescriptionId',
+                select: 'diagnosis physicalExamination patientId',
+                populate: { path: 'patientId', select: 'name patientId' }
+            })
+            .populate('labRequestId', 'patientName doctorConclusion physicalExamination')
+            .sort({ createdAt: -1 })
+            .limit(20);
+
+        const patientMedicinePurchases = recentTransactions
+            .filter((sale) => sale.prescriptionId || sale.labRequestId)
+            .map((sale) => ({
+                invoiceNumber: sale.invoiceNumber,
+                patientName: sale.prescriptionId?.patientId?.name || sale.labRequestId?.patientName || sale.customerName,
+                diagnosis: sale.prescriptionId?.diagnosis || sale.labRequestId?.doctorConclusion || '',
+                physicalExamination: sale.prescriptionId?.physicalExamination || sale.labRequestId?.physicalExamination || '',
+                paymentType: sale.paymentType,
+                totalAmount: sale.totalAmount,
+                items: sale.items,
+                createdAt: sale.createdAt,
+                cashierName: sale.cashierId?.name || 'Unknown'
+            }));
+
+        const customerPurchases = sales
+            .slice()
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .map((sale) => ({
+                invoiceNumber: sale.invoiceNumber,
+                customerName: sale.customerName,
+                currency: getSaleCurrency(sale),
+                paymentType: sale.paymentType,
+                totalAmount: sale.totalAmount,
+                usdTotalAmount: getSaleUsdAmount(sale, medicineLookup),
+                pricingSnapshot: getSalePricingSnapshot(sale, medicineLookup),
+                items: sale.items,
+                createdAt: sale.createdAt
+            }));
+
+        const customerCollections = currentDebtPayments
+            .slice()
+            .sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt))
+            .map((entry) => ({
+                customerName: entry.customerName,
+                invoiceNumber: entry.invoiceNumber,
+                currency: normalizeCurrency(entry.currency, 'SOS'),
+                amount: entry.amount,
+                paidAt: entry.paidAt,
+                source: entry.source
+            }));
+
+        res.json({
+            period,
+            filterMode,
+            periodRange: {
+                currentLabel: ranges.currentLabel,
+                previousLabel: ranges.previousLabel,
+                currentStart: ranges.currentStart,
+                currentEnd: ranges.currentEnd,
+                previousStart: ranges.previousStart,
+                previousEnd: ranges.previousEnd,
+                startDate: startDateQuery || null,
+                endDate: endDateQuery || null
+            },
+            exchangeRate: SOS_PER_USD,
+            totalRevenue: currentSummary.totalRevenue,
+            totalProfit: currentSummary.totalProfit,
+            totalCost: currentSummary.totalCost,
+            totalDebts: debts
+                .filter((debt) => debt.status !== 'PAID')
+                .reduce((acc, debt) => acc + debt.remainingBalance, 0),
+            cashRevenue: currentSummary.cashRevenue,
+            creditRevenue: currentSummary.creditRevenue,
+            debtCollectionsAmount,
+            actualMoneyReceived,
+            currencyTotals,
+            orderCount: currentSummary.orderCount,
+            previous: {
+                totalRevenue: previousSummary.totalRevenue,
+                totalProfit: previousSummary.totalProfit,
+                totalCost: previousSummary.totalCost,
+                cashRevenue: previousSummary.cashRevenue,
+                creditRevenue: previousSummary.creditRevenue,
+                debtCollectionsAmount: previousDebtCollectionsAmount,
+                actualMoneyReceived: previousActualMoneyReceived,
+                currencyTotals: previousCurrencyTotals,
+                orderCount: previousSummary.orderCount
+            },
+            investedStockValue,
+            totalFullBoxes,
+            totalLoosePills,
+            recentTransactions,
+            customerPurchases,
+            customerCollections,
+            patientMedicinePurchases
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

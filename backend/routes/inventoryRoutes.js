@@ -61,4 +61,73 @@ router.get('/medicines', protect, async (req, res) => {
     }
 });
 
+// @desc    Update a medicine
+router.patch('/medicines/:id', protect, authorize('Cashier', 'Admin'), async (req, res) => {
+    try {
+        const medicine = await Medicine.findById(req.params.id);
+        if (!medicine) {
+            return res.status(404).json({ message: 'Medicine not found' });
+        }
+
+        const {
+            name,
+            category,
+            supplierId,
+            purchasePricePerBox,
+            unitsPerBox,
+            sellingPricePerUnit,
+            sellingPricePerBox,
+            boxesBought,
+            expiryDate
+        } = req.body;
+
+        const nextUnitsPerBox = Number(unitsPerBox || medicine.unitsPerBox);
+        if (!Number.isFinite(nextUnitsPerBox) || nextUnitsPerBox <= 0) {
+            return res.status(400).json({ message: 'Units per box must be greater than 0' });
+        }
+
+        if (name !== undefined) medicine.name = name;
+        if (category !== undefined) medicine.category = category;
+        if (supplierId !== undefined) medicine.supplier = supplierId;
+        if (purchasePricePerBox !== undefined) medicine.purchasePricePerBox = purchasePricePerBox;
+        if (sellingPricePerUnit !== undefined) medicine.sellingPricePerUnit = sellingPricePerUnit;
+        if (expiryDate !== undefined) medicine.expiryDate = expiryDate;
+        medicine.unitsPerBox = nextUnitsPerBox;
+        medicine.sellingPricePerBox = sellingPricePerBox || (Number(medicine.sellingPricePerUnit) * nextUnitsPerBox);
+
+        if (boxesBought !== undefined && boxesBought !== '') {
+            const nextBoxesInStock = Number(boxesBought);
+            if (!Number.isFinite(nextBoxesInStock) || nextBoxesInStock < 0) {
+                return res.status(400).json({ message: 'Boxes in stock cannot be negative' });
+            }
+            medicine.boxesInStock = nextBoxesInStock;
+            medicine.totalUnitsInStock = nextBoxesInStock * nextUnitsPerBox;
+        } else {
+            medicine.boxesInStock = Math.floor((Number(medicine.totalUnitsInStock) || 0) / nextUnitsPerBox);
+        }
+
+        await medicine.save();
+        await medicine.populate('supplier', 'name source');
+
+        res.json(medicine);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+});
+
+// @desc    Delete a medicine
+router.delete('/medicines/:id', protect, authorize('Cashier', 'Admin'), async (req, res) => {
+    try {
+        const medicine = await Medicine.findById(req.params.id);
+        if (!medicine) {
+            return res.status(404).json({ message: 'Medicine not found' });
+        }
+
+        await medicine.deleteOne();
+        res.json({ message: 'Medicine deleted successfully' });
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+});
+
 module.exports = router;

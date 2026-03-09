@@ -1,34 +1,48 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Package, Plus } from 'lucide-react';
+import { Package, Plus, Pencil, Trash2, X } from 'lucide-react';
 import { convertSosToUsd, convertUsdToSos } from '../../utils/currency';
+
+const emptyForm = {
+    name: '',
+    category: '',
+    supplierId: '',
+    purchasePricePerBox: '',
+    unitsPerBox: '',
+    sellingPricePerUnit: '',
+    sellingPricePerBox: '',
+    boxesBought: '',
+    expiryDate: ''
+};
+
+const emptyUsdInput = { purchase: '', selling: '', sellingBox: '' };
 
 const MedicineRegistration = () => {
     const [suppliers, setSuppliers] = useState([]);
     const [medicines, setMedicines] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [formData, setFormData] = useState({
-        name: '',
-        category: '',
-        supplierId: '',
-        purchasePricePerBox: '',
-        unitsPerBox: '',
-        sellingPricePerUnit: '',
-        sellingPricePerBox: '',
-        boxesBought: '',
-        expiryDate: ''
-    });
-    const [usdInput, setUsdInput] = useState({ purchase: '', selling: '', sellingBox: '' });
+    const [editingMedicine, setEditingMedicine] = useState(null);
+    const [formData, setFormData] = useState(emptyForm);
+    const [usdInput, setUsdInput] = useState(emptyUsdInput);
 
     useEffect(() => {
         fetchSuppliers();
         fetchMedicines();
     }, []);
 
+    const authConfig = () => ({
+        headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` }
+    });
+
+    const resetForm = () => {
+        setEditingMedicine(null);
+        setFormData(emptyForm);
+        setUsdInput(emptyUsdInput);
+    };
+
     const fetchSuppliers = async () => {
         try {
-            const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://localhost:5010/api/inventory/suppliers', config);
+            const { data } = await axios.get('http://localhost:5010/api/inventory/suppliers', authConfig());
             setSuppliers(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error(err);
@@ -37,8 +51,7 @@ const MedicineRegistration = () => {
 
     const fetchMedicines = async () => {
         try {
-            const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://localhost:5010/api/inventory/medicines', config);
+            const { data } = await axios.get('http://localhost:5010/api/inventory/medicines', authConfig());
             setMedicines(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error(err);
@@ -64,13 +77,13 @@ const MedicineRegistration = () => {
         const usd = convertSosToUsd(sos);
 
         if (type === 'purchase') {
-            setFormData((prev) => ({ ...prev, purchasePricePerBox: sos }));
+            setFormData((prev) => ({ ...prev, purchasePricePerBox: value }));
             setUsdInput((prev) => ({ ...prev, purchase: usd }));
         } else if (type === 'selling') {
-            setFormData((prev) => ({ ...prev, sellingPricePerUnit: sos }));
+            setFormData((prev) => ({ ...prev, sellingPricePerUnit: value }));
             setUsdInput((prev) => ({ ...prev, selling: usd }));
         } else {
-            setFormData((prev) => ({ ...prev, sellingPricePerBox: sos }));
+            setFormData((prev) => ({ ...prev, sellingPricePerBox: value }));
             setUsdInput((prev) => ({ ...prev, sellingBox: usd }));
         }
     };
@@ -78,26 +91,54 @@ const MedicineRegistration = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
+
         try {
-            const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.post('http://localhost:5010/api/inventory/medicines', formData, config);
-            setFormData({
-                name: '',
-                category: '',
-                supplierId: '',
-                purchasePricePerBox: '',
-                unitsPerBox: '',
-                sellingPricePerUnit: '',
-                sellingPricePerBox: '',
-                boxesBought: '',
-                expiryDate: ''
-            });
-            setUsdInput({ purchase: '', selling: '', sellingBox: '' });
+            if (editingMedicine) {
+                await axios.patch(`http://localhost:5010/api/inventory/medicines/${editingMedicine._id}`, formData, authConfig());
+            } else {
+                await axios.post('http://localhost:5010/api/inventory/medicines', formData, authConfig());
+            }
+
+            resetForm();
             fetchMedicines();
         } catch (err) {
             alert(err.response?.data?.message || 'Failed');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleEdit = (medicine) => {
+        setEditingMedicine(medicine);
+        setFormData({
+            name: medicine.name || '',
+            category: medicine.category || '',
+            supplierId: medicine.supplier?._id || '',
+            purchasePricePerBox: medicine.purchasePricePerBox || '',
+            unitsPerBox: medicine.unitsPerBox || '',
+            sellingPricePerUnit: medicine.sellingPricePerUnit || '',
+            sellingPricePerBox: medicine.sellingPricePerBox || '',
+            boxesBought: medicine.boxesInStock || '',
+            expiryDate: medicine.expiryDate ? new Date(medicine.expiryDate).toISOString().split('T')[0] : ''
+        });
+        setUsdInput({
+            purchase: convertSosToUsd(medicine.purchasePricePerBox || 0),
+            selling: convertSosToUsd(medicine.sellingPricePerUnit || 0),
+            sellingBox: convertSosToUsd(medicine.sellingPricePerBox || 0)
+        });
+    };
+
+    const handleDelete = async (medicine) => {
+        if (!window.confirm(`Delete ${medicine.name}?`)) return;
+
+        try {
+            await axios.delete(`http://localhost:5010/api/inventory/medicines/${medicine._id}`, authConfig());
+            if (editingMedicine?._id === medicine._id) {
+                resetForm();
+            }
+            fetchMedicines();
+        } catch (err) {
+            alert(err.response?.data?.message || 'Failed to delete medicine');
         }
     };
 
@@ -111,12 +152,23 @@ const MedicineRegistration = () => {
         <div className="page-section animate-in fade-in duration-500">
             <div className="section-header">
                 <h2 className="section-title">Medicine Form & Stock Table</h2>
-                <p className="section-subtitle">Use your pharmacy data in a clean basic form and striped stock table layout.</p>
+                <p className="section-subtitle">Add, update, delete, and review medicine stock using your real inventory data.</p>
             </div>
 
             <div className="form-template">
-                <h3 className="form-template-title">Basic Form Elements</h3>
-                <p className="form-template-subtitle">Add medicine details, pricing, quantity, and expiry information.</p>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 className="form-template-title">{editingMedicine ? 'Update Medicine' : 'Basic Form Elements'}</h3>
+                        <p className="form-template-subtitle">
+                            {editingMedicine ? `Editing ${editingMedicine.name}` : 'Add medicine details, pricing, quantity, and expiry information.'}
+                        </p>
+                    </div>
+                    {editingMedicine && (
+                        <button type="button" onClick={resetForm} className="btn-secondary px-4 py-2 text-xs uppercase">
+                            <X size={14} /> Cancel Edit
+                        </button>
+                    )}
+                </div>
 
                 <form onSubmit={handleSubmit} className="form-template-row">
                     <div className="form-grid">
@@ -201,7 +253,7 @@ const MedicineRegistration = () => {
                             />
                         </div>
                         <div>
-                            <label>Boxes bought</label>
+                            <label>{editingMedicine ? 'Boxes in stock' : 'Boxes bought'}</label>
                             <input
                                 type="number"
                                 placeholder="Boxes"
@@ -212,10 +264,17 @@ const MedicineRegistration = () => {
                         </div>
                     </div>
 
-                    <button type="submit" disabled={loading} className="btn-primary px-6">
-                        <Plus size={16} />
-                        {loading ? 'Saving...' : 'Add medicine'}
-                    </button>
+                    <div className="flex flex-wrap gap-3">
+                        <button type="submit" disabled={loading} className="btn-primary px-6">
+                            <Plus size={16} />
+                            {loading ? 'Saving...' : (editingMedicine ? 'Update medicine' : 'Add medicine')}
+                        </button>
+                        {editingMedicine && (
+                            <button type="button" onClick={resetForm} className="btn-secondary px-6">
+                                Reset
+                            </button>
+                        )}
+                    </div>
                 </form>
             </div>
 
@@ -237,6 +296,7 @@ const MedicineRegistration = () => {
                                 <th>Progress</th>
                                 <th>Price (USD)</th>
                                 <th>Deadline</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -269,12 +329,22 @@ const MedicineRegistration = () => {
                                                 {new Date(medicine.expiryDate).toLocaleDateString()}
                                             </span>
                                         </td>
+                                        <td>
+                                            <div className="flex gap-2">
+                                                <button type="button" onClick={() => handleEdit(medicine)} className="btn-secondary px-3 py-2 text-xs">
+                                                    <Pencil size={14} />
+                                                </button>
+                                                <button type="button" onClick={() => handleDelete(medicine)} className="btn-secondary px-3 py-2 text-xs text-red-600">
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 );
                             })}
                             {medicines.length === 0 && (
                                 <tr>
-                                    <td colSpan="5" className="py-10 text-center text-slate-500">Inventory is empty.</td>
+                                    <td colSpan="6" className="py-10 text-center text-slate-500">Inventory is empty.</td>
                                 </tr>
                             )}
                         </tbody>
@@ -286,5 +356,3 @@ const MedicineRegistration = () => {
 };
 
 export default MedicineRegistration;
-
-

@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import AdminDashboard from './pages/admin/Dashboard';
+import AdminReports from './pages/admin/Reports';
 import CashierDashboard from './pages/cashier/Dashboard';
 import PatientRegistration from './pages/cashier/PatientRegistration';
 import PharmacySales from './pages/cashier/POS';
@@ -44,6 +45,7 @@ function App() {
             {/* Admin Routes */}
             <Route path="admin" element={<AdminDashboard />} />
             <Route path="admin/finance" element={<DashboardPlaceholder title="Financial Analytics" />} />
+            <Route path="admin/reports" element={<AdminReports />} />
             <Route path="admin/staff" element={<DashboardPlaceholder title="Staff Management" />} />
             <Route path="admin/inventory" element={<DashboardPlaceholder title="Inventory Management" />} />
 

@@ -1,110 +1,184 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { ShoppingCart, Plus, Trash2, Search, Printer, User, CreditCard, Banknote, FileText, Clock } from 'lucide-react';
+import { Banknote, CreditCard, FileText, Plus, Printer, Search, ShoppingCart, Trash2 } from 'lucide-react';
+import { convertSosToUsd } from '../../utils/currency';
 
-import { convertUsdToSos, convertSosToUsd } from '../../utils/currency';
+const escapeHtml = (value) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
 const PharmacyPOS = () => {
     const [medicines, setMedicines] = useState([]);
     const [customers, setCustomers] = useState([]);
+    const [prescriptions, setPrescriptions] = useState([]);
     const [cart, setCart] = useState([]);
     const [search, setSearch] = useState('');
     const [customerName, setCustomerName] = useState('Walk-in Customer');
     const [selectedCustomerId, setSelectedCustomerId] = useState('');
     const [paymentType, setPaymentType] = useState('CASH');
     const [paidAmount, setPaidAmount] = useState(0);
-    const [loading, setLoading] = useState(false);
-    const [saleSuccess, setSaleSuccess] = useState(null);
-    const [prescriptions, setPrescriptions] = useState([]);
-    const [showPrescriptions, setShowPrescriptions] = useState(false);
     const [selectedPrescriptionId, setSelectedPrescriptionId] = useState(null);
+    const [saleSuccess, setSaleSuccess] = useState(null);
+    const [showPrescriptions, setShowPrescriptions] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-    const normalizeText = (value) => (value || '').toString().trim().toLowerCase();
-    const parsePrescribedQuantity = (dosage) => {
-        const text = (dosage || '').toString().toLowerCase();
-        const boxMatch = text.match(/(\d+)\s*box/);
-        const pillMatch = text.match(/(\d+)\s*pill/);
-        const boxes = boxMatch ? Number.parseInt(boxMatch[1], 10) : 0;
-        const pills = pillMatch ? Number.parseInt(pillMatch[1], 10) : 0;
-        return {
-            boxes: Number.isFinite(boxes) ? boxes : 0,
-            pills: Number.isFinite(pills) ? pills : 0
-        };
-    };
+    const authConfig = () => ({
+        headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` }
+    });
 
-
-    const SOS_TO_USD_DISPLAY = 28000; // Kept for display purposes, actual conversion uses utility
-
-    useEffect(() => {
-        fetchMedicines();
-        fetchCustomers();
-        fetchPrescriptions();
-    }, []);
-
-
-    const fetchMedicines = async () => {
+    const loadAll = async () => {
         try {
-            const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://localhost:5010/api/inventory/medicines', config);
-            setMedicines(data);
-        } catch (err) { console.error(err); }
-    };
-
-    const fetchCustomers = async () => {
-        try {
-            const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://localhost:5010/api/cashier/customers', config);
-            setCustomers(data);
-        } catch (err) { console.error(err); }
-    };
-
-    const fetchPrescriptions = async () => {
-        try {
-            const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://localhost:5010/api/cashier/prescriptions', config);
-            setPrescriptions(data);
-        } catch (err) { console.error(err); }
-    };
-
-
-    const addToCart = (med, sellType, qty = 1) => {
-        const quantityToAdd = Math.max(1, Number.parseInt(qty, 10) || 1);
-        const cartId = `${med._id}-${sellType}`;
-        const existing = cart.find(item => item.cartId === cartId);
-
-        const price = sellType === 'BOX' ? (med.sellingPricePerBox || med.sellingPricePerUnit * med.unitsPerBox) : med.sellingPricePerUnit;
-
-        if (existing) {
-            const nextQty = item => item.quantity + quantityToAdd;
-            setCart(cart.map(item => item.cartId === cartId ? { ...item, quantity: nextQty(item), total: nextQty(item) * price } : item));
-        } else {
-            setCart([...cart, {
-                cartId,
-                medicineId: med._id,
-                name: med.name,
-                sellType,
-                price,
-                quantity: quantityToAdd,
-                total: quantityToAdd * price
-            }]);
+            const [medicineRes, customerRes, prescriptionRes] = await Promise.all([
+                axios.get('http://localhost:5010/api/inventory/medicines', authConfig()),
+                axios.get('http://localhost:5010/api/cashier/customers', authConfig()),
+                axios.get('http://localhost:5010/api/cashier/prescriptions', authConfig())
+            ]);
+            setMedicines(Array.isArray(medicineRes.data) ? medicineRes.data : []);
+            setCustomers(Array.isArray(customerRes.data) ? customerRes.data : []);
+            setPrescriptions(Array.isArray(prescriptionRes.data) ? prescriptionRes.data : []);
+        } catch (error) {
+            console.error(error);
         }
     };
 
-    const calculateTotal = () => cart.reduce((acc, item) => acc + item.total, 0);
+    useEffect(() => {
+        loadAll();
+    }, []);
+
+    const addToCart = (medicine, sellType, quantity = 1) => {
+        const qty = Math.max(1, Number.parseInt(quantity, 10) || 1);
+        const cartId = `${medicine._id}-${sellType}`;
+        const price = sellType === 'BOX'
+            ? (medicine.sellingPricePerBox || medicine.sellingPricePerUnit * medicine.unitsPerBox)
+            : medicine.sellingPricePerUnit;
+
+        setCart((prev) => {
+            const existing = prev.find((item) => item.cartId === cartId);
+            if (existing) {
+                return prev.map((item) => item.cartId === cartId
+                    ? { ...item, quantity: item.quantity + qty, total: (item.quantity + qty) * price }
+                    : item);
+            }
+            return [...prev, { cartId, medicineId: medicine._id, name: medicine.name, sellType, quantity: qty, price, total: qty * price }];
+        });
+    };
+
+    const loadPrescriptionToCart = (prescription) => {
+        setSelectedPrescriptionId(prescription._id);
+        setSelectedCustomerId('');
+        setCustomerName(prescription.patientId?.name || 'Walk-in Customer');
+
+        (prescription.medicines || []).forEach((prescribed) => {
+            const matched = medicines.find((medicine) =>
+                (prescribed.medicineId && medicine._id?.toString() === prescribed.medicineId?.toString()) ||
+                medicine.name?.trim().toLowerCase() === prescribed.name?.trim().toLowerCase()
+            );
+            if (!matched) return;
+            addToCart(matched, 'UNIT', 1);
+        });
+
+        setShowPrescriptions(false);
+    };
+
+    const total = useMemo(() => cart.reduce((sum, item) => sum + item.total, 0), [cart]);
+    const selectedCustomer = customers.find((customer) => customer._id === selectedCustomerId) || null;
+    const saleSummary = saleSuccess?.paymentSummary || null;
+
+    const printInvoice = (sale, existingWindow = null) => {
+        const printWindow = existingWindow || window.open('', '', 'width=900,height=1000');
+        if (!printWindow) {
+            alert('Invoice window was blocked.');
+            return;
+        }
+
+        const summary = sale.paymentSummary || {
+            paidAmount: sale.paymentType === 'CASH' ? sale.totalAmount : 0,
+            remainingBalance: 0,
+            status: sale.status
+        };
+        const rows = (sale.items || []).map((item) => `
+            <tr>
+                <td>${escapeHtml(item.name)}</td>
+                <td>${escapeHtml(item.sellType)}</td>
+                <td>${Number(item.quantity || 0).toLocaleString()}</td>
+                <td>${Number(item.unitPrice || 0).toLocaleString()} SOS</td>
+                <td>${Number(item.total || 0).toLocaleString()} SOS</td>
+            </tr>
+        `).join('');
+
+        printWindow.document.open();
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Invoice ${escapeHtml(sale.invoiceNumber)}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 24px; color: #0f172a; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+                        th, td { border-bottom: 1px solid #e2e8f0; padding: 10px 8px; text-align: left; }
+                        th { background: #f8fafc; font-size: 11px; text-transform: uppercase; }
+                        .box { border: 1px solid #cbd5e1; border-radius: 12px; padding: 16px; margin-top: 16px; }
+                        .row { display: flex; justify-content: space-between; margin-top: 8px; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Pharmacy Invoice</h1>
+                    <div class="box">
+                        <div class="row"><strong>Invoice</strong><span>${escapeHtml(sale.invoiceNumber)}</span></div>
+                        <div class="row"><strong>Date</strong><span>${new Date(sale.createdAt || Date.now()).toLocaleString()}</span></div>
+                        <div class="row"><strong>Customer</strong><span>${escapeHtml(sale.customerName)}</span></div>
+                        <div class="row"><strong>Payment</strong><span>${escapeHtml(sale.paymentType)}</span></div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Medicine</th>
+                                <th>Type</th>
+                                <th>Quantity</th>
+                                <th>Unit Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                    <div class="box">
+                        <div class="row"><strong>Paid Now</strong><span>${Number(summary.paidAmount || 0).toLocaleString()} SOS</span></div>
+                        <div class="row"><strong>Remaining Debt</strong><span>${Number(summary.remainingBalance || 0).toLocaleString()} SOS</span></div>
+                        <div class="row"><strong>Grand Total</strong><span>${Number(sale.totalAmount || 0).toLocaleString()} SOS</span></div>
+                    </div>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => printWindow.print(), 200);
+    };
 
     const processSale = async () => {
+        if (cart.length === 0) return;
+        const paidNow = paymentType === 'CASH' ? total : Math.max(0, Number(paidAmount) || 0);
+        if (paymentType === 'CREDIT' && paidNow > total) {
+            alert('Paid amount cannot be greater than total amount.');
+            return;
+        }
+
+        const printWindow = window.open('', '', 'width=900,height=1000');
+        if (printWindow) {
+            printWindow.document.write('<div style="font-family: Arial, sans-serif; padding: 24px;">Preparing invoice...</div>');
+        }
+
         setLoading(true);
         try {
-            const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const total = calculateTotal();
             const { data } = await axios.post('http://localhost:5010/api/cashier/sales', {
                 items: cart,
-                customerName: selectedCustomerId ? customers.find(c => c._id === selectedCustomerId)?.name : customerName,
+                customerName: selectedCustomer ? selectedCustomer.name : customerName,
                 customerId: selectedCustomerId || null,
                 paymentType,
-                paidAmount: paymentType === 'CASH' ? total : paidAmount,
+                paidAmount: paidNow,
                 prescriptionId: selectedPrescriptionId
-            }, config);
+            }, authConfig());
 
             setSaleSuccess(data);
             setCart([]);
@@ -112,249 +186,170 @@ const PharmacyPOS = () => {
             setCustomerName('Walk-in Customer');
             setPaidAmount(0);
             setSelectedPrescriptionId(null);
-            fetchMedicines();
-            fetchPrescriptions();
-
-        } catch (err) { alert(err.response?.data?.message || 'Sale failed'); }
-        finally { setLoading(false); }
+            loadAll();
+            printInvoice(data, printWindow);
+        } catch (error) {
+            if (printWindow) printWindow.close();
+            alert(error.response?.data?.message || 'Sale failed');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
         <div className="space-y-6">
             <div className="section-header">
                 <h1 className="section-title">Point of Sale</h1>
-                <p className="section-subtitle">Sell medicines by unit or box, attach prescriptions, and complete payment flow.</p>
+                <p className="section-subtitle">Sell medicines, manage debt safely, and print the saved invoice correctly.</p>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* inventory side */}
-            <div className="lg:col-span-2 space-y-6">
-                <div className="card border-2 border-slate-100 bg-white">
-                    <div className="mb-6">
-                        <h3 className="text-xl font-black text-slate-800 tracking-tighter italic">1. FIND MEDICINE</h3>
-                        <p className="text-[10px] text-medical-muted font-bold uppercase">Type the name of the pill or box below</p>
-                    </div>
 
-                    <div className="flex gap-4 mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <div className="lg:col-span-2 card space-y-4">
+                    <div className="flex gap-3">
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-primary" size={20} />
-                            <input type="text" className="input-field pl-10 h-14 text-lg font-bold border-primary/20 bg-primary/5" placeholder="Search medicine name..." value={search} onChange={e => setSearch(e.target.value)} />
+                            <input className="input-field pl-10 h-12" placeholder="Search medicine..." value={search} onChange={(e) => setSearch(e.target.value)} />
                         </div>
-                        <button
-                            onClick={() => setShowPrescriptions(!showPrescriptions)}
-                            className={`px-6 rounded-2xl font-black text-xs uppercase flex items-center gap-2 transition-all ${prescriptions.length > 0 ? 'bg-orange-100 text-orange-600 animate-pulse border-orange-200 border-2' : 'bg-slate-100 text-slate-400 opacity-50'}`}
-                        >
-                            <FileText size={18} />
-                            Prescriptions ({prescriptions.length})
+                        <button type="button" onClick={() => setShowPrescriptions((prev) => !prev)} className="btn-secondary px-4 py-2 text-xs uppercase">
+                            <FileText size={16} /> Prescriptions
                         </button>
                     </div>
 
                     {showPrescriptions && (
-                        <div className="mb-6 p-6 bg-orange-50 rounded-[2rem] border-2 border-orange-100 animate-in slide-in-from-top duration-300">
-                            <h4 className="text-sm font-black text-orange-800 uppercase italic mb-4 flex items-center gap-2">
-                                <Clock size={16} /> Latest Doctor Prescriptions
-                            </h4>
-                            <div className="space-y-3">
-                                {prescriptions.map(p => (
-                                    <div key={p._id} className="bg-white p-4 rounded-2xl border border-orange-100 flex justify-between items-center shadow-sm">
-                                        <div>
-                                            <p className="font-black text-slate-800 uppercase italic">{p.patientId?.name || 'Unknown'}</p>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{p.diagnosis}</p>
-                                            <p className="text-[10px] text-slate-500 font-bold mt-1">Notes: {p.physicalExamination || 'No physical notes'}</p>
-                                            <p className="text-[10px] text-orange-600 font-bold mt-1 uppercase italic">By Dr. {p.doctorId?.name}</p>
-                                            <p className="text-[10px] text-slate-500 font-bold mt-1">
-                                                Medicines: {(p.medicines || []).map(m => `${m.name} (${m.dosage || '-'}, ${m.duration || '-'})`).filter(Boolean).join(' | ') || 'None'}
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => {
-                                                // Load medicines from prescription into cart
-                                                setSelectedPrescriptionId(p._id);
-                                                setSelectedCustomerId('');
-                                                setCustomerName(p.patientId?.name || 'Walk-in Customer');
-                                                const missingMeds = [];
-                                                p.medicines.forEach(pm => {
-                                                    const med = medicines.find(m => pm.medicineId && m._id?.toString() === pm.medicineId?.toString()) ||
-                                                        medicines.find(m => normalizeText(m.name) === normalizeText(pm.name));
-
-                                                    if (med) {
-                                                        const prescribed = parsePrescribedQuantity(pm.dosage);
-                                                        if (prescribed.boxes > 0) addToCart(med, 'BOX', prescribed.boxes);
-                                                        if (prescribed.pills > 0) addToCart(med, 'UNIT', prescribed.pills);
-                                                        if (prescribed.boxes === 0 && prescribed.pills === 0) addToCart(med, 'UNIT', 1);
-                                                    } else {
-                                                        missingMeds.push(pm.name || 'Unknown medicine');
-                                                    }
-                                                });
-
-                                                if (missingMeds.length > 0) {
-                                                    alert(`These prescribed medicines are not available in inventory: ${missingMeds.join(', ')}`);
-                                                }
-                                                setShowPrescriptions(false);
-                                            }}
-                                            className="px-4 py-2 bg-orange-600 text-white rounded-xl font-black text-[10px] uppercase hover:bg-orange-700 shadow-lg shadow-orange-600/30"
-                                        >
-                                            Load to Cart
-                                        </button>
-
+                        <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 space-y-3">
+                            {(prescriptions || []).map((prescription) => (
+                                <div key={prescription._id} className="flex items-center justify-between gap-3 rounded-xl bg-white p-3 border border-orange-100">
+                                    <div>
+                                        <p className="font-black text-slate-800">{prescription.patientId?.name || 'Unknown'}</p>
+                                        <p className="text-xs text-slate-500">{prescription.diagnosis || 'No diagnosis'}</p>
                                     </div>
-                                ))}
-                            </div>
+                                    <button type="button" onClick={() => loadPrescriptionToCart(prescription)} className="btn-primary px-3 py-2 text-xs">
+                                        Load
+                                    </button>
+                                </div>
+                            ))}
                         </div>
                     )}
 
-
-                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-                        {medicines.filter(m => m.name.toLowerCase().includes(search.toLowerCase())).map(med => (
-                            <div key={med._id} className="p-5 bg-slate-50 border border-slate-200 rounded-3xl hover:bg-white hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 transition-all flex justify-between items-center group">
-                                <div className="flex-1">
-                                    <h4 className="font-black text-xl text-slate-800 tracking-tight uppercase">{med.name}</h4>
-                                    <div className="flex gap-4 mt-2">
-                                        <div className="bg-white px-3 py-2 rounded-2xl border border-slate-100 flex-1">
-                                            <p className="text-[10px] font-black text-emerald-600 leading-none mb-1">1 PILL (UNIT)</p>
-                                            <span className="text-sm font-black text-slate-800">{med.sellingPricePerUnit?.toLocaleString()} SOS</span>
-                                        </div>
-                                        <div className="bg-white px-3 py-2 rounded-2xl border border-slate-100 flex-1">
-                                            <p className="text-[10px] font-black text-blue-600 leading-none mb-1">1 FULL BOX</p>
-                                            <span className="text-sm font-black text-slate-800">{med.sellingPricePerBox?.toLocaleString() || (med.sellingPricePerUnit * med.unitsPerBox)?.toLocaleString()} SOS</span>
-                                        </div>
-                                    </div>
-                                    <p className="mt-2 text-[10px] font-bold text-slate-500 bg-slate-100 w-fit px-2 py-0.5 rounded-full border border-slate-200 uppercase tracking-tighter">Stock: {med.boxesInStock} Boxes + {med.totalUnitsInStock % med.unitsPerBox} Pills</p>
+                    <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                        {medicines.filter((medicine) => medicine.name.toLowerCase().includes(search.toLowerCase())).map((medicine) => (
+                            <div key={medicine._id} className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <div>
+                                    <p className="font-black text-slate-800">{medicine.name}</p>
+                                    <p className="text-xs text-slate-500">Stock: {medicine.boxesInStock} boxes / {medicine.totalUnitsInStock} units</p>
                                 </div>
-                                <div className="flex flex-col gap-2">
-                                    <button onClick={() => addToCart(med, 'UNIT')} className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-md">
-                                        <Plus size={16} /> <span className="text-[10px] font-black uppercase">Sell 1 Pill</span>
+                                <div className="flex gap-2">
+                                    <button type="button" onClick={() => addToCart(medicine, 'UNIT')} className="btn-secondary px-3 py-2 text-xs">
+                                        <Plus size={14} /> Unit
                                     </button>
-                                    <button onClick={() => addToCart(med, 'BOX')} className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-md">
-                                        <Plus size={16} /> <span className="text-[10px] font-black uppercase">Sell 1 Box</span>
+                                    <button type="button" onClick={() => addToCart(medicine, 'BOX')} className="btn-primary px-3 py-2 text-xs">
+                                        <Plus size={14} /> Box
                                     </button>
                                 </div>
                             </div>
                         ))}
                     </div>
                 </div>
-            </div>
 
-            {/* Sidebar POS */}
-            <div className="lg:col-span-2 space-y-6">
-                <div className="card flex flex-col h-[85vh] border-2 border-primary/20 bg-white">
-                    <div className="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
-                        <h3 className="text-xl font-black flex items-center gap-2 italic tracking-tighter">
-                            <ShoppingCart className="text-primary" /> 2. CHECKOUT (INVOICE)
-                        </h3>
-                        <div className="text-right bg-slate-900 text-white px-4 py-2 rounded-2xl">
-                            <p className="text-[10px] font-bold text-primary uppercase tracking-widest leading-none">Rate Used</p>
-                            <p className="text-sm font-black italic">$1 = 28 SOS</p>
-                        </div>
-                    </div>
-
-                    {/* Customer Info */}
-                    <div className="grid grid-cols-2 gap-6 mb-6">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1 italic"><User size={12} /> Who is buying?</label>
+                <div className="lg:col-span-2 card space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-black uppercase text-slate-500">Customer</label>
                             <select
-                                className="input-field h-12 font-bold border-slate-200"
+                                className="input-field mt-2"
                                 value={selectedCustomerId}
-                                onChange={e => {
+                                onChange={(e) => {
                                     setSelectedCustomerId(e.target.value);
                                     if (!e.target.value) setCustomerName('Walk-in Customer');
                                 }}
                             >
-                                <option value="">--- New/Walk-in ---</option>
-                                {customers.map(c => (
-                                    <option key={c._id} value={c._id}>{c.name} ({c.phone || 'No Phone'})</option>
+                                <option value="">Walk-in / New customer</option>
+                                {customers.map((customer) => (
+                                    <option key={customer._id} value={customer._id}>{customer.name}</option>
                                 ))}
                             </select>
                             {!selectedCustomerId && (
-                                <input
-                                    type="text"
-                                    className="input-field h-10 text-xs mt-1 italic border-dashed"
-                                    placeholder="Enter Customer Name if No ID..."
-                                    value={customerName}
-                                    onChange={e => setCustomerName(e.target.value)}
-                                />
+                                <input className="input-field mt-2" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Customer name" />
+                            )}
+                            {selectedCustomer && (
+                                <div className={`mt-2 rounded-xl border px-3 py-2 ${Number(selectedCustomer.outstandingDebt) > 0 ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+                                    {Number(selectedCustomer.outstandingDebt) > 0
+                                        ? `${Number(selectedCustomer.outstandingDebt).toLocaleString()} SOS debt`
+                                        : 'No debt'}
+                                </div>
                             )}
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1 italic"><CreditCard size={12} /> Payment Method</label>
-                            <select className="input-field h-12 font-black border-slate-200 bg-slate-50" value={paymentType} onChange={e => setPaymentType(e.target.value)}>
-                                <option value="CASH">💵 GIVE CASH (Paid)</option>
-                                <option value="CREDIT">💳 CREDIT (Debts/Dayn)</option>
+                        <div>
+                            <label className="text-xs font-black uppercase text-slate-500">Payment</label>
+                            <select className="input-field mt-2" value={paymentType} onChange={(e) => setPaymentType(e.target.value)}>
+                                <option value="CASH">Cash / Paid</option>
+                                <option value="CREDIT">Credit / Debt</option>
                             </select>
+                            {paymentType === 'CREDIT' && (
+                                <input className="input-field mt-2" type="number" value={paidAmount} onChange={(e) => setPaidAmount(Number(e.target.value))} placeholder="Paid now (SOS)" />
+                            )}
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto space-y-3 mb-6 bg-slate-50/50 p-2 rounded-xl border border-dashed border-slate-200">
+                    <div className="rounded-2xl border border-dashed border-slate-200 p-3 space-y-3 min-h-[18rem]">
                         {cart.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center opacity-30">
-                                <ShoppingCart size={64} /> <p className="font-bold mt-2">NO ITEMS ADDED</p>
+                            <div className="flex h-full min-h-[14rem] flex-col items-center justify-center text-slate-400">
+                                <ShoppingCart size={48} />
+                                <p className="mt-2 font-bold">No items added</p>
                             </div>
-                        ) : cart.map((item, idx) => (
-                            <div key={idx} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center animate-in slide-in-from-right duration-200">
+                        ) : cart.map((item, index) => (
+                            <div key={item.cartId} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
                                 <div>
-                                    <p className="font-bold text-sm">{item.name}</p>
-                                    <div className="flex items-center gap-2">
-                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${item.sellType === 'BOX' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>{item.sellType}</span>
-                                        <span className="text-xs text-slate-500">{item.quantity} x {item.price.toLocaleString()} SOS</span>
-                                    </div>
+                                    <p className="font-black text-slate-800">{item.name}</p>
+                                    <p className="text-xs text-slate-500">{item.quantity} {item.sellType} x {item.price.toLocaleString()} SOS</p>
                                 </div>
-                                <div className="flex items-center gap-4">
-                                    <span className="font-bold text-slate-800">{item.total.toLocaleString()} SOS</span>
-                                    <button onClick={() => setCart(cart.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={16} /></button>
+                                <div className="flex items-center gap-3">
+                                    <p className="font-black">{item.total.toLocaleString()} SOS</p>
+                                    <button type="button" onClick={() => setCart(cart.filter((_, itemIndex) => itemIndex !== index))} className="text-red-500">
+                                        <Trash2 size={16} />
+                                    </button>
                                 </div>
                             </div>
                         ))}
                     </div>
 
-                    <div className="space-y-4 pt-4 border-t border-slate-200">
-                        {paymentType === 'CREDIT' && (
-                            <div className="mb-2 animate-in fade-in duration-300">
-                                <label className="text-xs font-bold text-red-500 uppercase">Paid Amount Now (SOS)</label>
-                                <input type="number" className="input-field mt-1 py-2 border-red-200 bg-red-50/20" value={paidAmount} onChange={e => setPaidAmount(Number(e.target.value))} />
-                            </div>
-                        )}
-                        <div className="flex justify-between items-end">
-                            <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase">Total in USD</p>
-                                <p className="text-xl font-bold text-slate-500">~ ${convertSosToUsd(calculateTotal())}</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-xs font-bold text-slate-400 uppercase">Grand Total (SOS)</p>
-                                <p className="text-4xl font-bold text-primary">{calculateTotal().toLocaleString()} SOS</p>
-                            </div>
+                    <div className="flex items-end justify-between">
+                        <div>
+                            <p className="text-xs font-black uppercase text-slate-500">Total USD</p>
+                            <p className="text-lg font-bold text-slate-600">${convertSosToUsd(total)}</p>
                         </div>
-                        <button
-                            onClick={processSale}
-                            disabled={cart.length === 0 || loading}
-                            className={`w-full py-5 rounded-2xl font-black text-xl shadow-xl flex items-center justify-center gap-3 transition-all ${paymentType === 'CASH' ? 'bg-primary text-white shadow-primary/30' : 'bg-orange-600 text-white shadow-orange-200'}`}
-                        >
-                            {loading ? 'PROCESSING...' : (paymentType === 'CASH' ? <><Banknote /> PRINT INVOICE</> : <><CreditCard /> SAVE DEBT (DAYN)</>)}
-                        </button>
+                        <div className="text-right">
+                            <p className="text-xs font-black uppercase text-slate-500">Total SOS</p>
+                            <p className="text-3xl font-black text-primary">{total.toLocaleString()} SOS</p>
+                        </div>
                     </div>
-                </div>
 
-                {saleSuccess && (
-                    <div className="card bg-slate-900 text-white animate-in zoom-in duration-300">
-                        <div className="flex justify-between items-center mb-4">
-                            <span className="text-xs font-bold text-primary">TRANSACTION COMPLETED</span>
-                            <span className="text-xs font-mono">{saleSuccess.invoiceNumber}</span>
-                        </div>
-                        <div className="flex justify-between items-end">
-                            <div>
-                                <p className="text-sm opacity-60">Customer: {saleSuccess.customerName}</p>
-                                <p className="text-sm opacity-60">Profit: {saleSuccess.profit.toLocaleString()} SOS</p>
+                    <button type="button" onClick={processSale} disabled={cart.length === 0 || loading} className={`w-full ${paymentType === 'CASH' ? 'btn-primary' : 'btn-secondary'} py-4 text-sm uppercase`}>
+                        {loading ? 'Processing...' : (paymentType === 'CASH' ? <><Banknote size={16} /> Save And Print Invoice</> : <><CreditCard size={16} /> Save Debt And Print Invoice</>)}
+                    </button>
+
+                    {saleSuccess && (
+                        <div className="rounded-2xl border border-slate-200 bg-slate-900 p-4 text-white">
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="font-black">{saleSuccess.invoiceNumber}</p>
+                                    <p className="text-sm text-slate-300">{saleSuccess.customerName}</p>
+                                </div>
+                                <button type="button" onClick={() => printInvoice(saleSuccess)} className="btn-secondary px-3 py-2 text-xs">
+                                    <Printer size={14} /> Print Again
+                                </button>
                             </div>
-                            <button onClick={() => window.print()} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl transition-all">
-                                <Printer size={18} /> <span className="font-bold">PRINT</span>
-                            </button>
+                            <div className="mt-3 space-y-1 text-sm text-slate-300">
+                                <p>Total: {saleSuccess.totalAmount.toLocaleString()} SOS</p>
+                                <p>Paid: {Number(saleSummary?.paidAmount || 0).toLocaleString()} SOS</p>
+                                <p>{Number(saleSummary?.remainingBalance || 0) > 0 ? `Debt: ${Number(saleSummary.remainingBalance).toLocaleString()} SOS` : 'No debt'}</p>
+                            </div>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
             </div>
         </div>
     );
 };
 
 export default PharmacyPOS;
-
-

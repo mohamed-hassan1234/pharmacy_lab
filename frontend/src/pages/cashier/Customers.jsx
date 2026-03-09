@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { User, Phone, Plus, History, Search } from 'lucide-react';
+import { convertSosToUsd } from '../../utils/currency';
 
 const CustomerManagement = () => {
     const [customers, setCustomers] = useState([]);
@@ -98,6 +99,7 @@ const CustomerManagement = () => {
                                 <tr>
                                     <th>Name</th>
                                     <th>Phone</th>
+                                    <th>Debt</th>
                                     <th>Registered On</th>
                                 </tr>
                             </thead>
@@ -106,6 +108,16 @@ const CustomerManagement = () => {
                                     <tr key={c._id}>
                                         <td className="px-4 py-4 font-semibold text-slate-800 uppercase tracking-tighter">{c.name}</td>
                                         <td className="px-4 py-4 font-mono text-slate-600">{c.phone || 'N/A'}</td>
+                                        <td className="px-4 py-4">
+                                            {Number(c.outstandingDebt) > 0 ? (
+                                                <div>
+                                                    <p className="font-black text-orange-600">{Number(c.outstandingDebt).toLocaleString()} SOS</p>
+                                                    <p className="text-xs font-bold text-slate-400">${convertSosToUsd(c.outstandingDebt)} USD</p>
+                                                </div>
+                                            ) : (
+                                                <span className="status-chip bg-emerald-100 text-emerald-700">No debt</span>
+                                            )}
+                                        </td>
                                         <td className="px-4 py-4 text-sm text-slate-500">{new Date(c.createdAt).toLocaleDateString()}</td>
                                     </tr>
                                 ))}

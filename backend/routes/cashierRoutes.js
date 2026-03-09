@@ -10,6 +10,7 @@ const LabRequest = require('../models/LabRequest');
 
 const Prescription = require('../models/Prescription');
 const REPORT_PERIODS = new Set(['daily', 'weekly', 'monthly', 'yearly']);
+const CASHIER_REPORT_SOS_PER_USD = Number(process.env.SOS_PER_USD || 57000);
 
 const parseDateOnly = (value) => {
     if (!value || typeof value !== 'string') return null;
@@ -127,6 +128,525 @@ const summarizeSales = (sales = []) => {
     };
 };
 
+const normalizeReportCurrency = (value, fallback = 'SOS') => {
+    if (!value || typeof value !== 'string') return fallback;
+
+    const normalized = value.trim().toUpperCase();
+    if (normalized === 'USD' || normalized === '$') return 'USD';
+    if (normalized === 'SOS' || normalized === 'SHILLING' || normalized === 'SHILLINGS') return 'SOS';
+
+    return fallback;
+};
+
+const createReportCurrencyBucket = () => ({
+    SOS: 0,
+    USD: 0
+});
+
+const getReportSaleCurrency = (sale = {}) => {
+    const directCurrency = normalizeReportCurrency(
+        sale.currency ||
+        sale.currencyCode ||
+        sale.saleCurrency ||
+        sale.totalCurrency ||
+        sale.pricingCurrency,
+        null
+    );
+
+    if (directCurrency) {
+        return directCurrency;
+    }
+
+    const itemCurrencies = Array.isArray(sale.items)
+        ? sale.items
+            .map((item) => normalizeReportCurrency(
+                item?.currency ||
+                item?.currencyCode ||
+                item?.saleCurrency ||
+                item?.priceCurrency ||
+                item?.unitCurrency,
+                null
+            ))
+            .filter(Boolean)
+        : [];
+
+    if (itemCurrencies.length > 0 && itemCurrencies.every((currency) => currency === itemCurrencies[0])) {
+        return itemCurrencies[0];
+    }
+
+    return 'SOS';
+};
+
+const getReportDebtCurrency = (debt = {}) => normalizeReportCurrency(
+    debt.currency ||
+    debt.currencyCode ||
+    debt.saleCurrency ||
+    debt.balanceCurrency,
+    'SOS'
+);
+
+const summarizeReportCurrencyTotals = (sales = [], debts = [], paymentEvents = []) => {
+    const totals = {
+        totalRevenue: createReportCurrencyBucket(),
+        totalProfit: createReportCurrencyBucket(),
+        totalCost: createReportCurrencyBucket(),
+        cashRevenue: createReportCurrencyBucket(),
+        creditRevenue: createReportCurrencyBucket(),
+        totalDebts: createReportCurrencyBucket(),
+        debtCollectionsAmount: createReportCurrencyBucket(),
+        actualMoneyReceived: createReportCurrencyBucket()
+    };
+
+    sales.forEach((sale) => {
+        const currency = getReportSaleCurrency(sale);
+        const totalAmount = Number(sale.totalAmount) || 0;
+        const totalProfit = Number(sale.profit) || 0;
+        const totalCost = Number(sale.totalCost) || 0;
+
+        totals.totalRevenue[currency] += totalAmount;
+        totals.totalProfit[currency] += totalProfit;
+        totals.totalCost[currency] += totalCost;
+
+        if (sale.paymentType === 'CASH') {
+            totals.cashRevenue[currency] += totalAmount;
+            totals.actualMoneyReceived[currency] += totalAmount;
+        } else if (sale.paymentType === 'CREDIT') {
+            totals.creditRevenue[currency] += totalAmount;
+        }
+    });
+
+    debts
+        .filter((debt) => debt.status !== 'PAID')
+        .forEach((debt) => {
+            const currency = getReportDebtCurrency(debt);
+            totals.totalDebts[currency] += Number(debt.remainingBalance) || 0;
+        });
+
+    paymentEvents.forEach((entry) => {
+        const currency = normalizeReportCurrency(entry.currency, 'SOS');
+        const amount = Number(entry.amount) || 0;
+        totals.debtCollectionsAmount[currency] += amount;
+        totals.actualMoneyReceived[currency] += amount;
+    });
+
+    return totals;
+};
+
+const reportToNumber = (...values) => {
+    for (const value of values) {
+        const number = Number(value);
+        if (Number.isFinite(number)) {
+            return number;
+        }
+    }
+
+    return 0;
+};
+
+const reportAlmostEqual = (left, right, epsilon = 0.01) => Math.abs(left - right) <= epsilon;
+
+const getReportItemQuantity = (item = {}) => {
+    const quantity = reportToNumber(
+        item.quantity,
+        item.units,
+        item.unitsSold,
+        item.boxes,
+        item.qty,
+        1
+    );
+
+    return quantity > 0 ? quantity : 1;
+};
+
+const normalizeReportMedicineName = (value) => String(value || '')
+    .toLowerCase()
+    .replace(/\sx\d+$/i, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const getReportMedicineLookup = (medicines = []) => {
+    const byId = new Map();
+    const byName = new Map();
+    const entries = [];
+
+    medicines.forEach((medicine) => {
+        if (medicine?._id) {
+            byId.set(String(medicine._id), medicine);
+        }
+
+        [
+            medicine?.name,
+            medicine?.medicineName,
+            medicine?.productName,
+            medicine?.title
+        ]
+            .filter(Boolean)
+            .forEach((value) => {
+                const rawName = String(value).trim().toLowerCase();
+                const normalizedName = normalizeReportMedicineName(value);
+                byName.set(rawName, medicine);
+
+                if (normalizedName) {
+                    byName.set(normalizedName, medicine);
+                    entries.push({ normalizedName, medicine });
+                }
+            });
+    });
+
+    return { byId, byName, entries };
+};
+
+const getReportMedicineForItem = (item = {}, medicineLookup = { byId: new Map(), byName: new Map(), entries: [] }) => {
+    const candidateIds = [
+        item.medicineId,
+        item.medicine,
+        item.medicine?._id,
+        item.medicine?._id?.toString?.(),
+        item.productId,
+        item.itemId
+    ].filter(Boolean);
+
+    for (const candidateId of candidateIds) {
+        const foundById = medicineLookup.byId.get(String(candidateId));
+        if (foundById) {
+            return foundById;
+        }
+    }
+
+    const candidateNames = [
+        item.medicineName,
+        item.name,
+        typeof item.medicine === 'string' ? item.medicine : null,
+        item.medicine?.name,
+        item.productName,
+        item.title
+    ].filter(Boolean);
+
+    for (const candidateName of candidateNames) {
+        const rawName = String(candidateName).trim().toLowerCase();
+        const normalizedName = normalizeReportMedicineName(candidateName);
+        const foundByName = medicineLookup.byName.get(rawName) || medicineLookup.byName.get(normalizedName);
+        if (foundByName) {
+            return foundByName;
+        }
+
+        const fuzzyMatch = medicineLookup.entries.find(({ normalizedName: entryName }) =>
+            entryName === normalizedName ||
+            entryName.includes(normalizedName) ||
+            normalizedName.includes(entryName)
+        );
+
+        if (fuzzyMatch) {
+            return fuzzyMatch.medicine;
+        }
+    }
+
+    return null;
+};
+
+const flattenReportNumericEntries = (value, prefix = '', seen = new Set()) => {
+    if (!value || typeof value !== 'object') {
+        return [];
+    }
+
+    if (seen.has(value)) {
+        return [];
+    }
+
+    seen.add(value);
+
+    return Object.entries(value).flatMap(([key, nestedValue]) => {
+        const nextKey = prefix ? `${prefix}.${key}` : key;
+
+        if (typeof nestedValue === 'number' && Number.isFinite(nestedValue)) {
+            return [{ key: nextKey.toLowerCase(), value: nestedValue }];
+        }
+
+        if (typeof nestedValue === 'string') {
+            const numeric = Number(nestedValue);
+            if (Number.isFinite(numeric) && nestedValue.trim() !== '') {
+                return [{ key: nextKey.toLowerCase(), value: numeric }];
+            }
+        }
+
+        if (nestedValue && typeof nestedValue === 'object') {
+            return flattenReportNumericEntries(nestedValue, nextKey, seen);
+        }
+
+        return [];
+    });
+};
+
+const findReportMedicinePrice = (medicine, keywordGroups) => {
+    const numericEntries = flattenReportNumericEntries(medicine);
+
+    for (const keywords of keywordGroups) {
+        const match = numericEntries.find(({ key }) => keywords.every((keyword) => key.includes(keyword)));
+        if (match && match.value > 0) {
+            return match.value;
+        }
+    }
+
+    return 0;
+};
+
+const inferReportItemUsdAmount = (item = {}, medicine) => {
+    const quantity = getReportItemQuantity(item);
+
+    const directUsdTotal = reportToNumber(
+        item.totalPriceUSD,
+        item.totalAmountUSD,
+        item.lineTotalUSD,
+        item.subtotalUSD
+    );
+
+    if (directUsdTotal > 0) {
+        return directUsdTotal;
+    }
+
+    const directUsdUnitPrice = reportToNumber(
+        item.unitPriceUSD,
+        item.priceUSD,
+        item.sellingPricePerUnitUSD
+    );
+
+    if (directUsdUnitPrice > 0) {
+        return directUsdUnitPrice * quantity;
+    }
+
+    const directUsdBoxPrice = reportToNumber(
+        item.boxPriceUSD,
+        item.sellingPricePerBoxUSD
+    );
+
+    const lineTotalSOS = reportToNumber(
+        item.totalPrice,
+        item.totalAmount,
+        item.lineTotal,
+        item.subtotal
+    );
+
+    const unitPriceSOS = reportToNumber(
+        item.unitPrice,
+        item.price,
+        item.unitPriceSOS,
+        item.priceSOS,
+        item.sellingPricePerUnitSOS
+    );
+
+    if (directUsdBoxPrice > 0) {
+        const mode = String(item.saleUnit || item.unitType || item.quantityType || '').toUpperCase();
+        if (mode === 'BOX' || mode === 'BOXES') {
+            return directUsdBoxPrice * quantity;
+        }
+    }
+
+    if (!medicine) {
+        return 0;
+    }
+
+    const medicineBoxUsd = reportToNumber(
+        medicine.sellingPricePerBoxUSD,
+        medicine.salePricePerBoxUSD,
+        findReportMedicinePrice(medicine, [['selling', 'box', 'usd'], ['box', 'usd']])
+    );
+    const medicineUnitUsd = reportToNumber(
+        medicine.sellingPricePerUnitUSD,
+        medicine.salePricePerUnitUSD,
+        findReportMedicinePrice(medicine, [['selling', 'unit', 'usd'], ['unit', 'usd']])
+    );
+    const medicineBoxSos = reportToNumber(
+        medicine.sellingPricePerBoxSOS,
+        medicine.salePricePerBoxSOS,
+        findReportMedicinePrice(medicine, [['selling', 'box', 'sos'], ['box', 'sos']])
+    );
+    const medicineUnitSos = reportToNumber(
+        medicine.sellingPricePerUnitSOS,
+        medicine.salePricePerUnitSOS,
+        findReportMedicinePrice(medicine, [['selling', 'unit', 'sos'], ['unit', 'sos']])
+    );
+    const mode = String(item.saleUnit || item.unitType || item.quantityType || '').toUpperCase();
+
+    if ((mode === 'BOX' || mode === 'BOXES') && medicineBoxUsd > 0) {
+        return medicineBoxUsd * quantity;
+    }
+
+    if ((mode === 'UNIT' || mode === 'PILL' || mode === 'PIECE') && medicineUnitUsd > 0) {
+        return medicineUnitUsd * quantity;
+    }
+
+    if (lineTotalSOS > 0 && medicineBoxSos > 0 && medicineBoxUsd > 0 && reportAlmostEqual(lineTotalSOS, medicineBoxSos * quantity)) {
+        return medicineBoxUsd * quantity;
+    }
+
+    if (lineTotalSOS > 0 && medicineUnitSos > 0 && medicineUnitUsd > 0 && reportAlmostEqual(lineTotalSOS, medicineUnitSos * quantity)) {
+        return medicineUnitUsd * quantity;
+    }
+
+    if (unitPriceSOS > 0 && medicineBoxSos > 0 && medicineBoxUsd > 0 && reportAlmostEqual(unitPriceSOS, medicineBoxSos)) {
+        return medicineBoxUsd * quantity;
+    }
+
+    if (unitPriceSOS > 0 && medicineUnitSos > 0 && medicineUnitUsd > 0 && reportAlmostEqual(unitPriceSOS, medicineUnitSos)) {
+        return medicineUnitUsd * quantity;
+    }
+
+    return 0;
+};
+
+const inferReportUsdFromSaleTotal = (sale = {}, item = {}, medicine) => {
+    if (!medicine) {
+        return 0;
+    }
+
+    const quantity = getReportItemQuantity(item);
+    const saleTotalSOS = reportToNumber(sale.totalAmount);
+
+    if (saleTotalSOS <= 0) {
+        return 0;
+    }
+
+    const medicineBoxUsd = reportToNumber(
+        medicine.sellingPricePerBoxUSD,
+        medicine.salePricePerBoxUSD,
+        findReportMedicinePrice(medicine, [['selling', 'box', 'usd'], ['box', 'usd']])
+    );
+    const medicineUnitUsd = reportToNumber(
+        medicine.sellingPricePerUnitUSD,
+        medicine.salePricePerUnitUSD,
+        findReportMedicinePrice(medicine, [['selling', 'unit', 'usd'], ['unit', 'usd']])
+    );
+    const medicineBoxSos = reportToNumber(
+        medicine.sellingPricePerBoxSOS,
+        medicine.salePricePerBoxSOS,
+        findReportMedicinePrice(medicine, [['selling', 'box', 'sos'], ['box', 'sos']])
+    );
+    const medicineUnitSos = reportToNumber(
+        medicine.sellingPricePerUnitSOS,
+        medicine.salePricePerUnitSOS,
+        findReportMedicinePrice(medicine, [['selling', 'unit', 'sos'], ['unit', 'sos']])
+    );
+
+    if (medicineBoxSos > 0 && medicineBoxUsd > 0 && reportAlmostEqual(saleTotalSOS, medicineBoxSos * quantity)) {
+        return medicineBoxUsd * quantity;
+    }
+
+    if (medicineUnitSos > 0 && medicineUnitUsd > 0 && reportAlmostEqual(saleTotalSOS, medicineUnitSos * quantity)) {
+        return medicineUnitUsd * quantity;
+    }
+
+    return 0;
+};
+
+const getReportSaleUsdAmount = (sale = {}, medicineLookup) => {
+    const saleCurrency = getReportSaleCurrency(sale);
+    const totalAmount = reportToNumber(sale.totalAmount);
+
+    if (saleCurrency === 'USD' && totalAmount > 0) {
+        return totalAmount;
+    }
+
+    if (!Array.isArray(sale.items) || sale.items.length === 0) {
+        return 0;
+    }
+
+    if (sale.items.length === 1) {
+        const item = sale.items[0];
+        const medicine = getReportMedicineForItem(item, medicineLookup);
+        const directItemUsd = inferReportItemUsdAmount(item, medicine);
+
+        if (directItemUsd > 0) {
+            return directItemUsd;
+        }
+
+        const saleMatchedUsd = inferReportUsdFromSaleTotal(sale, item, medicine);
+        if (saleMatchedUsd > 0) {
+            return saleMatchedUsd;
+        }
+    }
+
+    return sale.items.reduce((acc, item) => {
+        const medicine = getReportMedicineForItem(item, medicineLookup);
+        return acc + inferReportItemUsdAmount(item, medicine);
+    }, 0);
+};
+
+const getReportSalePricingSnapshot = (sale = {}, medicineLookup) => {
+    if (!Array.isArray(sale.items) || sale.items.length !== 1) {
+        return null;
+    }
+
+    const item = sale.items[0];
+    const medicine = getReportMedicineForItem(item, medicineLookup);
+
+    if (!medicine) {
+        return null;
+    }
+
+    return {
+        medicineName: medicine.name || medicine.medicineName || medicine.productName || '',
+        quantity: getReportItemQuantity(item),
+        sellingPricePerBoxUSD: reportToNumber(
+            medicine.sellingPricePerBoxUSD,
+            medicine.salePricePerBoxUSD,
+            findReportMedicinePrice(medicine, [['selling', 'box', 'usd'], ['box', 'usd']])
+        ),
+        sellingPricePerUnitUSD: reportToNumber(
+            medicine.sellingPricePerUnitUSD,
+            medicine.salePricePerUnitUSD,
+            findReportMedicinePrice(medicine, [['selling', 'unit', 'usd'], ['unit', 'usd']])
+        ),
+        sellingPricePerBoxSOS: reportToNumber(
+            medicine.sellingPricePerBoxSOS,
+            medicine.salePricePerBoxSOS,
+            findReportMedicinePrice(medicine, [['selling', 'box', 'sos'], ['box', 'sos']])
+        ),
+        sellingPricePerUnitSOS: reportToNumber(
+            medicine.sellingPricePerUnitSOS,
+            medicine.salePricePerUnitSOS,
+            findReportMedicinePrice(medicine, [['selling', 'unit', 'sos'], ['unit', 'sos']])
+        )
+    };
+};
+
+const getDebtPaymentEvents = (debts = []) => debts.flatMap((debt) => {
+    const history = Array.isArray(debt.paymentHistory) ? debt.paymentHistory : [];
+
+    if (history.length > 0) {
+        return history.map((entry) => ({
+            debtId: debt._id,
+            customerId: debt.customerId || null,
+            customerName: debt.customerName,
+            invoiceNumber: debt.invoiceNumber,
+            amount: Number(entry.amount) || 0,
+            paidAt: entry.paidAt || debt.updatedAt || debt.createdAt,
+            source: entry.source || 'COLLECTION',
+            currency: normalizeReportCurrency(entry.currency || debt.currency || debt.currencyCode || debt.saleCurrency, 'SOS')
+        }));
+    }
+
+    if ((Number(debt.paidAmount) || 0) > 0) {
+        return [{
+            debtId: debt._id,
+            customerId: debt.customerId || null,
+            customerName: debt.customerName,
+            invoiceNumber: debt.invoiceNumber,
+            amount: Number(debt.paidAmount) || 0,
+            paidAt: debt.createdAt,
+            source: 'INITIAL',
+            currency: getReportDebtCurrency(debt)
+        }];
+    }
+
+    return [];
+});
+
+const sumPaymentsInRange = (debts = [], start, end) => getDebtPaymentEvents(debts)
+    .filter((entry) => {
+        const paidAt = new Date(entry.paidAt);
+        return paidAt >= start && paidAt < end;
+    });
+
 // Process Sale (BOX or UNIT logic)
 router.post('/sales', protect, authorize('Cashier', 'Admin'), async (req, res) => {
     try {
@@ -196,6 +716,13 @@ router.post('/sales', protect, authorize('Cashier', 'Admin'), async (req, res) =
         const saleCount = await Sale.countDocuments();
         const invoiceNumber = `INV-${(saleCount + 1).toString().padStart(4, '0')}`;
 
+        const normalizedPaidAmount = Math.max(0, Number(paidAmount) || 0);
+        if (paymentType === 'CREDIT' && normalizedPaidAmount > totalAmount) {
+            throw new Error('Paid amount cannot be greater than the total amount');
+        }
+
+        const remainingBalance = Math.max(totalAmount - normalizedPaidAmount, 0);
+
         const sale = await Sale.create({
             invoiceNumber,
             cashierId: req.user._id,
@@ -208,20 +735,32 @@ router.post('/sales', protect, authorize('Cashier', 'Admin'), async (req, res) =
             totalCost,
             profit: totalAmount - totalCost,
             paymentType,
-            status: paymentType === 'CASH' ? 'PAID' : (paidAmount > 0 ? 'PARTIAL' : 'UNPAID')
+            status: paymentType === 'CASH' || remainingBalance === 0 ? 'PAID' : (normalizedPaidAmount > 0 ? 'PARTIAL' : 'UNPAID')
         });
 
         // Handle Credit (Debt)
+        let debtRecord = null;
         if (paymentType === 'CREDIT') {
-            await Debt.create({
-                customerName: resolvedCustomerName,
-                invoiceNumber,
-                saleId: sale._id,
-                totalAmount,
-                paidAmount,
-                remainingBalance: totalAmount - paidAmount,
-                status: paidAmount === 0 ? 'UNPAID' : 'PARTIAL'
-            });
+            if (remainingBalance > 0) {
+                debtRecord = await Debt.create({
+                    customerId: customerId || null,
+                    customerName: resolvedCustomerName,
+                    invoiceNumber,
+                    saleId: sale._id,
+                    totalAmount,
+                    paidAmount: normalizedPaidAmount,
+                    remainingBalance,
+                    status: normalizedPaidAmount === 0 ? 'UNPAID' : 'PARTIAL',
+                    paymentHistory: normalizedPaidAmount > 0
+                        ? [{
+                            amount: normalizedPaidAmount,
+                            paidAt: new Date(),
+                            source: 'INITIAL',
+                            note: 'Initial payment during credit sale'
+                        }]
+                        : []
+                });
+            }
         }
 
         // Update Prescription Status if applicable
@@ -237,7 +776,24 @@ router.post('/sales', protect, authorize('Cashier', 'Admin'), async (req, res) =
             });
         }
 
-        res.status(201).json(sale);
+        const saleResponse = sale.toObject();
+        saleResponse.paymentSummary = {
+            paidAmount: paymentType === 'CASH' ? totalAmount : normalizedPaidAmount,
+            remainingBalance,
+            status: sale.status
+        };
+        if (debtRecord) {
+            saleResponse.debt = {
+                _id: debtRecord._id,
+                invoiceNumber: debtRecord.invoiceNumber,
+                totalAmount: debtRecord.totalAmount,
+                paidAmount: debtRecord.paidAmount,
+                remainingBalance: debtRecord.remainingBalance,
+                status: debtRecord.status
+            };
+        }
+
+        res.status(201).json(saleResponse);
 
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -270,7 +826,41 @@ router.post('/customers', protect, authorize('Cashier', 'Admin'), async (req, re
 router.get('/customers', protect, authorize('Cashier', 'Admin'), async (req, res) => {
     try {
         const customers = await Customer.find().sort({ name: 1 });
-        res.json(customers);
+        const outstandingDebts = await Debt.find({ status: { $ne: 'PAID' } })
+            .select('customerId customerName remainingBalance')
+            .lean();
+
+        const debtByCustomerId = new Map();
+        const debtByCustomerName = new Map();
+
+        outstandingDebts.forEach((debt) => {
+            const amount = Number(debt.remainingBalance) || 0;
+            if (debt.customerId) {
+                const key = debt.customerId.toString();
+                debtByCustomerId.set(key, (debtByCustomerId.get(key) || 0) + amount);
+                return;
+            }
+
+            const nameKey = (debt.customerName || '').trim().toLowerCase();
+            if (nameKey) {
+                debtByCustomerName.set(nameKey, (debtByCustomerName.get(nameKey) || 0) + amount);
+            }
+        });
+
+        const customersWithDebt = customers.map((customer) => {
+            const idKey = customer._id.toString();
+            const nameKey = (customer.name || '').trim().toLowerCase();
+            const outstandingDebt = (debtByCustomerId.get(idKey) || 0) + (debtByCustomerName.get(nameKey) || 0);
+            const customerObject = customer.toObject();
+
+            return {
+                ...customerObject,
+                outstandingDebt,
+                debtStatus: outstandingDebt > 0 ? 'HAS_DEBT' : 'NO_DEBT'
+            };
+        });
+
+        res.json(customersWithDebt);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -287,6 +877,7 @@ router.get('/dashboard', protect, authorize('Cashier', 'Admin'), async (req, res
 
         // All Medicines
         const allMedicines = await Medicine.find();
+        const medicineLookup = getReportMedicineLookup(allMedicines);
 
         // Out of Stock (less than 5 units)
         const outOfStock = allMedicines.filter(m => m.totalUnitsInStock < 5).length;
@@ -381,6 +972,10 @@ router.get('/dashboard', protect, authorize('Cashier', 'Admin'), async (req, res
 // Get Cashier Reports
 router.get('/reports', protect, authorize('Cashier', 'Admin'), async (req, res) => {
     try {
+        res.set('Cache-Control', 'no-store');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+
         const requestedPeriod = String(req.query.period || 'daily').toLowerCase();
         const period = REPORT_PERIODS.has(requestedPeriod) ? requestedPeriod : 'daily';
         const startDateQuery = req.query.startDate ? String(req.query.startDate) : '';
@@ -418,14 +1013,24 @@ router.get('/reports', protect, authorize('Cashier', 'Admin'), async (req, res) 
             createdAt: { $gte: ranges.previousStart, $lt: ranges.previousEnd }
         });
 
-        const debts = await Debt.find({ status: { $ne: 'PAID' } });
+        const debts = await Debt.find();
         const currentSummary = summarizeSales(sales);
         const previousSummary = summarizeSales(previousSales);
+        const currentDebtPayments = sumPaymentsInRange(debts, ranges.currentStart, ranges.currentEnd);
+        const previousDebtPayments = sumPaymentsInRange(debts, ranges.previousStart, ranges.previousEnd);
+        const currencyTotals = summarizeReportCurrencyTotals(sales, debts, currentDebtPayments);
+        const previousCurrencyTotals = summarizeReportCurrencyTotals(previousSales, debts, previousDebtPayments);
+        const debtCollectionsAmount = currentDebtPayments.reduce((acc, entry) => acc + entry.amount, 0);
+        const previousDebtCollectionsAmount = previousDebtPayments.reduce((acc, entry) => acc + entry.amount, 0);
+        const actualMoneyReceived = currentSummary.cashRevenue + debtCollectionsAmount;
+        const previousActualMoneyReceived = previousSummary.cashRevenue + previousDebtCollectionsAmount;
 
         const totalRevenue = currentSummary.totalRevenue;
         const totalProfit = currentSummary.totalProfit;
         const totalCost = currentSummary.totalCost;
-        const totalDebts = debts.reduce((acc, d) => acc + d.remainingBalance, 0);
+        const totalDebts = debts
+            .filter((debt) => debt.status !== 'PAID')
+            .reduce((acc, d) => acc + d.remainingBalance, 0);
         const cashRevenue = currentSummary.cashRevenue;
         const creditRevenue = currentSummary.creditRevenue;
 
@@ -469,6 +1074,35 @@ router.get('/reports', protect, authorize('Cashier', 'Admin'), async (req, res) 
                 createdAt: sale.createdAt
             }));
 
+        const medicineLookup = getReportMedicineLookup(await Medicine.find());
+
+        const customerPurchases = sales
+            .slice()
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .map((sale) => ({
+                invoiceNumber: sale.invoiceNumber,
+                customerName: sale.customerName,
+                currency: getReportSaleCurrency(sale),
+                paymentType: sale.paymentType,
+                totalAmount: sale.totalAmount,
+                usdTotalAmount: getReportSaleUsdAmount(sale, medicineLookup),
+                pricingSnapshot: getReportSalePricingSnapshot(sale, medicineLookup),
+                items: sale.items,
+                createdAt: sale.createdAt
+            }));
+
+        const customerCollections = currentDebtPayments
+            .slice()
+            .sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt))
+            .map((entry) => ({
+                customerName: entry.customerName,
+                invoiceNumber: entry.invoiceNumber,
+                currency: normalizeReportCurrency(entry.currency, 'SOS'),
+                amount: entry.amount,
+                paidAt: entry.paidAt,
+                source: entry.source
+            }));
+
         res.json({
             period,
             filterMode,
@@ -482,12 +1116,16 @@ router.get('/reports', protect, authorize('Cashier', 'Admin'), async (req, res) 
                 startDate: startDateQuery || null,
                 endDate: endDateQuery || null
             },
+            exchangeRate: CASHIER_REPORT_SOS_PER_USD,
             totalRevenue,
             totalProfit,
             totalCost,
             totalDebts,
             cashRevenue,
             creditRevenue,
+            debtCollectionsAmount,
+            actualMoneyReceived,
+            currencyTotals,
             orderCount: currentSummary.orderCount,
             previous: {
                 totalRevenue: previousSummary.totalRevenue,
@@ -495,12 +1133,17 @@ router.get('/reports', protect, authorize('Cashier', 'Admin'), async (req, res) 
                 totalCost: previousSummary.totalCost,
                 cashRevenue: previousSummary.cashRevenue,
                 creditRevenue: previousSummary.creditRevenue,
+                debtCollectionsAmount: previousDebtCollectionsAmount,
+                actualMoneyReceived: previousActualMoneyReceived,
+                currencyTotals: previousCurrencyTotals,
                 orderCount: previousSummary.orderCount
             },
             investedStockValue, // Money currently sitting on the shelf
             totalFullBoxes,
             totalLoosePills,
             recentTransactions,
+            customerPurchases,
+            customerCollections,
             patientMedicinePurchases
         });
     } catch (error) {
@@ -526,15 +1169,24 @@ router.patch('/debts/:id', protect, authorize('Cashier', 'Admin'), async (req, r
 
         if (!debt) return res.status(404).json({ message: 'Debt record not found' });
 
-        debt.paidAmount += parseFloat(amountPaid);
-        debt.remainingBalance = debt.totalAmount - debt.paidAmount;
-
-        if (debt.remainingBalance <= 0) {
-            debt.status = 'PAID';
-            debt.remainingBalance = 0;
-        } else if (debt.paidAmount > 0) {
-            debt.status = 'PARTIAL';
+        const payment = Number(amountPaid);
+        if (!Number.isFinite(payment) || payment <= 0) {
+            return res.status(400).json({ message: 'Amount paid must be greater than 0' });
         }
+        if (payment > debt.remainingBalance) {
+            return res.status(400).json({ message: 'Amount paid cannot be greater than remaining debt' });
+        }
+
+        debt.paidAmount = (Number(debt.paidAmount) || 0) + payment;
+        debt.remainingBalance = Math.max((Number(debt.remainingBalance) || 0) - payment, 0);
+        debt.status = debt.remainingBalance === 0 ? 'PAID' : 'PARTIAL';
+        debt.paymentHistory = Array.isArray(debt.paymentHistory) ? debt.paymentHistory : [];
+        debt.paymentHistory.push({
+            amount: payment,
+            paidAt: new Date(),
+            source: 'COLLECTION',
+            note: 'Debt collection payment'
+        });
 
         await debt.save();
         res.json(debt);

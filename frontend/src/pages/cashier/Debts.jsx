@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { CreditCard, Search, DollarSign, CheckCircle, Clock, ArrowRight, User } from 'lucide-react';
+import { CreditCard, Search, DollarSign, CheckCircle, Clock, User } from 'lucide-react';
 import { convertSosToUsd } from '../../utils/currency';
 
 const Debts = () => {
@@ -25,6 +25,9 @@ const Debts = () => {
 
     const handlePayment = async () => {
         if (!paymentAmount || paymentAmount <= 0) return alert('Please enter a valid amount');
+        if (Number(paymentAmount) > Number(payModal?.remainingBalance || 0)) {
+            return alert('Amount paid cannot be greater than the remaining debt');
+        }
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
             await axios.patch(`http://localhost:5010/api/cashier/debts/${payModal._id}`, { amountPaid: paymentAmount }, config);
@@ -36,6 +39,8 @@ const Debts = () => {
     };
 
     const filtered = debts.filter(d => d.customerName.toLowerCase().includes(search.toLowerCase()) || d.invoiceNumber.includes(search));
+    const paymentValue = Number(paymentAmount) || 0;
+    const remainingAfterPayment = payModal ? Math.max((Number(payModal.remainingBalance) || 0) - paymentValue, 0) : 0;
 
     return (
         <div className="page-section animate-in fade-in duration-500">
@@ -137,11 +142,19 @@ const Debts = () => {
                                 />
                                 <div className="mt-3 flex gap-2">
                                     <button
-                                        onClick={() => setPaymentAmount(payModal.remainingBalance)}
+                                        onClick={() => setPaymentAmount(String(payModal.remainingBalance))}
                                         className="text-[10px] font-black bg-slate-900 text-white px-3 py-1 rounded-full hover:bg-black transition-colors"
                                     >
                                         FILL TOTAL AMOUNT
                                     </button>
+                                </div>
+                                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">After this payment</p>
+                                    {remainingAfterPayment > 0 ? (
+                                        <p className="mt-1 text-lg font-black text-orange-600">{remainingAfterPayment.toLocaleString()} SOS still owed</p>
+                                    ) : (
+                                        <p className="mt-1 text-lg font-black text-emerald-600">No debt</p>
+                                    )}
                                 </div>
                             </div>
 

@@ -1,18 +1,19 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #1cc588;
-  --color-primary-dark: #16a372;
-  --color-primary-light: #e6f9f1;
-  --color-secondary: #0ea5e9;
-  --color-medical-bg: #f3f5f9;
+  --color-primary: #b50000;
+  --color-primary-dark: #820000;
+  --color-primary-light: #fde8e8;
+  --color-secondary: #1f9817;
+  --color-secondary-light: #e8f7e7;
+  --color-medical-bg: #f3f0ef;
   --color-medical-surface: #ffffff;
-  --color-medical-surface-muted: #f8fafc;
-  --color-medical-text: #1e293b;
-  --color-medical-muted: #64748b;
-  --color-sidebar-bg: #0f172a;
-  --color-sidebar-border: #1e293b;
-  --color-sidebar-text: #cbd5e1;
+  --color-medical-surface-muted: #faf7f6;
+  --color-medical-text: #2d1414;
+  --color-medical-muted: #7a5d5d;
+  --color-sidebar-bg: #4b0808;
+  --color-sidebar-border: #7c1111;
+  --color-sidebar-text: #f4dddd;
 
   --font-sans: "Inter", "system-ui", "sans-serif";
 
@@ -40,10 +41,14 @@
 @layer components {
   .app-shell {
     @apply min-h-screen bg-medical-bg;
+    background-image:
+      radial-gradient(circle at top left, rgba(181, 0, 0, 0.08), transparent 32%),
+      radial-gradient(circle at top right, rgba(31, 152, 23, 0.1), transparent 24%);
   }
 
   .app-sidebar {
     @apply fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-sidebar-border bg-sidebar-bg text-sidebar-text transition-transform duration-300 lg:translate-x-0;
+    background-image: linear-gradient(180deg, rgba(75, 8, 8, 0.98), rgba(55, 6, 6, 0.98));
   }
 
   .app-sidebar-brand {
@@ -52,6 +57,7 @@
 
   .app-sidebar-brand-badge {
     @apply flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white shadow-lg shadow-primary/20;
+    background-image: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
   }
 
   .app-sidebar-section {
@@ -75,15 +81,15 @@
   }
 
   .app-topbar {
-    @apply sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur-sm sm:px-6;
+    @apply sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-primary/10 bg-white/95 px-4 py-3 backdrop-blur-sm sm:px-6;
   }
 
   .topbar-search {
-    @apply flex min-w-[15rem] max-w-xl flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600;
+    @apply flex min-w-[15rem] max-w-xl flex-1 items-center gap-2 rounded-xl border border-primary/10 bg-white px-3 py-2 text-sm text-slate-600;
   }
 
   .topbar-chip {
-    @apply inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600;
+    @apply inline-flex items-center gap-2 rounded-xl border border-primary/10 bg-white px-3 py-2 text-xs font-semibold text-slate-600;
   }
 
   .app-content {
@@ -95,7 +101,7 @@
   }
 
   .section-header {
-    @apply rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-card sm:px-6;
+    @apply rounded-2xl border border-primary/10 bg-white px-5 py-5 shadow-card sm:px-6;
   }
 
   .section-title {
@@ -131,7 +137,7 @@
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 font-medium text-slate-600 transition-colors hover:bg-slate-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-primary/15 bg-white px-4 py-2.5 font-medium text-slate-700 transition-colors hover:bg-primary-light hover:text-primary-dark;
   }
 
   .btn-danger {
@@ -139,7 +145,7 @@
   }
 
   .card {
-    @apply rounded-2xl border border-slate-200 bg-white p-5 shadow-card sm:p-6;
+    @apply rounded-2xl border border-primary/10 bg-white p-5 shadow-card sm:p-6;
   }
 
   .input-field {
@@ -147,7 +153,7 @@
   }
 
   .table-shell {
-    @apply overflow-x-auto rounded-2xl border border-slate-200;
+    @apply overflow-x-auto rounded-2xl border border-primary/10;
   }
 
   .data-table {
@@ -262,7 +268,7 @@
   }
 
   .ai-agent-header {
-    @apply flex items-center justify-between border-b border-slate-200/70 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-4 py-3 text-white;
+    @apply flex items-center justify-between border-b border-slate-200/70 bg-gradient-to-r from-primary via-primary-dark to-secondary px-4 py-3 text-white;
   }
 
   .ai-agent-icon-wrap {
@@ -278,7 +284,7 @@
   }
 
   .ai-agent-messages {
-    @apply flex-1 space-y-2.5 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.08),_transparent_48%)] px-3 py-3.5;
+    @apply flex-1 space-y-2.5 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(181,0,0,0.08),_transparent_46%),radial-gradient(circle_at_bottom_right,_rgba(31,152,23,0.08),_transparent_42%)] px-3 py-3.5;
     min-height: 16rem;
   }
 
@@ -291,7 +297,7 @@
   }
 
   .ai-msg-user {
-    @apply ml-auto bg-gradient-to-r from-primary to-emerald-500 text-white shadow-md shadow-primary/25;
+    @apply ml-auto bg-gradient-to-r from-primary to-secondary text-white shadow-md shadow-primary/25;
   }
 
   .ai-agent-suggestions {
@@ -311,7 +317,7 @@
   }
 
   .ai-agent-toggle {
-    @apply inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-slate-900 via-slate-800 to-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xl shadow-slate-900/30 transition-all hover:-translate-y-0.5;
+    @apply inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary via-primary-dark to-secondary px-4 py-2.5 text-sm font-semibold text-white shadow-xl shadow-primary/20 transition-all hover:-translate-y-0.5;
   }
 
   .custom-scrollbar {
