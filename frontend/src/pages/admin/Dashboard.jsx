@@ -113,9 +113,9 @@ const AdminDashboard = () => {
                 </div>
                 <button onClick={() => setShowAddStaff(true)} className="btn-primary px-5 py-3 text-xs uppercase tracking-wide">
                     <UserPlus size={18} /> Ku Dar Shaqaale
-                </button>
+                </button>  
             </div>
-
+{/* waa dhahay  */}
             <div className="metrics-grid">
                 <div className="metric-card border-l-4 border-blue-500">
                     <DollarSign className="text-blue-600" size={20} />
