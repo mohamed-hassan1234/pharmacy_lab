@@ -42,11 +42,11 @@ const Login = () => {
                         <Stethoscope size={32} />
                     </div>
                     <h1 className="text-3xl font-bold text-slate-900">HealthSync Pro</h1>
-                    <p className="text-slate-500 mt-2">Clinic & Pharmacy Management System</p>
+                    <p className="text-slate-500 mt-2">Nidaamka Maamulka Rugta iyo Farmashiyaha</p>
                 </div>
 
                 <div className="bg-white rounded-3xl shadow-premium p-8 border border-slate-100">
-                    <h2 className="text-xl font-bold text-slate-800 mb-6 text-center">Sign In</h2>
+                    <h2 className="text-xl font-bold text-slate-800 mb-6 text-center">Soo Gal</h2>
 
                     {error && (
                         <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm mb-6 flex items-center gap-2">
@@ -57,7 +57,7 @@ const Login = () => {
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">Email Address</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Cinwaanka Iimaylka</label>
                             <div className="relative">
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                 <input
@@ -72,7 +72,7 @@ const Login = () => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">Password</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Furaha Sirta</label>
                             <div className="relative">
                                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                 <input
@@ -101,18 +101,18 @@ const Login = () => {
                             {loading ? (
                                 <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                             ) : (
-                                'Log In'
+                                'Gal'
                             )}
                         </button>
                     </form>
 
                     <div className="mt-8 pt-8 border-t border-slate-50 space-y-4">
                         <p className="text-center text-sm text-slate-500">
-                            Don't have an account?{' '}
-                            <Link to="/register" className="text-primary font-bold hover:underline">Register</Link>
+                            Akoon ma lihid?{' '}
+                            <Link to="/register" className="text-primary font-bold hover:underline">Isdiiwaangeli</Link>
                         </p>
                         <p className="text-center text-sm text-slate-500">
-                            Demo access: <span className="font-semibold text-primary">admin@clinic.com / password123</span>
+                            Gelitaanka tijaabada: <span className="font-semibold text-primary">admin@clinic.com / password123</span>
                         </p>
                     </div>
                 </div>

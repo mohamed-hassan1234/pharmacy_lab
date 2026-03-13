@@ -24,7 +24,7 @@ const Register = () => {
             await axios.post('http://localhost:5010/api/auth/register', formData);
             navigate('/login');
         } catch (err) {
-            setError(err.response?.data?.message || 'Registration failed');
+            setError(err.response?.data?.message || 'Isdiiwaangelintu way fashilantay');
         } finally {
             setLoading(false);
         }
@@ -37,8 +37,8 @@ const Register = () => {
                     <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-white shadow-xl shadow-primary/30 mx-auto mb-6">
                         <Stethoscope size={32} />
                     </div>
-                    <h1 className="text-3xl font-bold text-slate-900">Create Account</h1>
-                    <p className="text-slate-500 mt-2">Join HealthSync Pro Management</p>
+                    <h1 className="text-3xl font-bold text-slate-900">Samee Akoon</h1>
+                    <p className="text-slate-500 mt-2">Ku soo biir maamulka HealthSync Pro</p>
                 </div>
 
                 <div className="bg-white rounded-3xl shadow-premium p-8 border border-slate-100">
@@ -51,7 +51,7 @@ const Register = () => {
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Magaca Buuxa</label>
                             <div className="relative">
                                 <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                 <input
@@ -66,7 +66,7 @@ const Register = () => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Cinwaanka Iimaylka</label>
                             <div className="relative">
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                 <input
@@ -81,7 +81,7 @@ const Register = () => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Role</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Doorka</label>
                             <div className="relative">
                                 <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                 <select
@@ -89,16 +89,16 @@ const Register = () => {
                                     value={formData.role}
                                     onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                                 >
-                                    <option value="Admin">Admin</option>
-                                    <option value="Cashier">Cashier</option>
-                                    <option value="Doctor">Doctor</option>
-                                    <option value="Lab Technician">Lab Technician</option>
+                                    <option value="Admin">Maamule</option>
+                                    <option value="Cashier">Qasnaji</option>
+                                    <option value="Doctor">Dhakhtar</option>
+                                    <option value="Lab Technician">Farsamo-yaqaan Shaybaar</option>
                                 </select>
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Furaha Sirta</label>
                             <div className="relative">
                                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                 <input
@@ -127,15 +127,15 @@ const Register = () => {
                             {loading ? (
                                 <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                             ) : (
-                                'Register'
+                                'Isdiiwaangeli'
                             )}
                         </button>
                     </form>
 
                     <p className="text-center text-sm text-slate-500 mt-6">
-                        Already have an account?{' '}
+                        Akoon hore ma u leedahay?{' '}
                         <Link to="/login" className="text-primary font-bold hover:underline">
-                            Sign In
+                            Soo Gal
                         </Link>
                     </p>
                 </div>

@@ -82,7 +82,7 @@ const getWelcomeText = (name, lang = 'en') => {
   if (lang === 'so') {
     return `Salaan ${name || ''}! Waxaan ahay AI Help Agent-kaaga. Waad qori kartaa ama cod ku hadli kartaa (English/Somali). I weydii status-ka nidaamka, profit maanta vs shalay, ama report daily/weekly/monthly/yearly.`;
   }
-  return `Hello ${name || 'there'}! I am your AI Help Agent. You can type or talk by voice (English/Somali). Ask system status, today vs yesterday profit, or daily/weekly/monthly/yearly reports.`;
+  return `Salaan ${name || ''}! Waxaan ahay AI Help Agent-kaaga. Waad qori kartaa ama cod ku hadli kartaa (English/Somali). I weydii xaaladda nidaamka, faa'iidada maanta iyo shalay, ama warbixin maalinle/usbuucle/bille/sanadle ah.`;
 };
 
 const normalizeLanguage = (lang) => (lang === 'so' ? 'so' : 'en');
@@ -250,7 +250,7 @@ const AIHelpAgent = () => {
 
       const assistantTextRaw =
         String(data?.answer || '') ||
-        'I could not generate an answer right now. Please ask again with a system-related question.';
+        "Jawaab ma abuuri karo hadda. Fadlan mar kale weydii su'aal la xiriirta nidaamka.";
       const assistantText = assistantTextRaw.replace(/\n{3,}/g, '\n\n').trim();
 
       setMessages((prev) => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: assistantText }]);
@@ -270,7 +270,7 @@ const AIHelpAgent = () => {
           role: 'assistant',
           text:
             error?.response?.data?.message ||
-            'Connection issue: AI assistant service is not available right now.'
+            'Dhibaato xiriir ayaa jirta: adeegga kaaliyaha AI hadda lama heli karo.'
         }
       ]);
     } finally {
@@ -290,8 +290,8 @@ const AIHelpAgent = () => {
                 <Bot size={16} />
               </div>
               <div>
-                <p className="text-sm font-semibold text-white">AI Help Agent</p>
-                <p className="text-[11px] text-slate-200">Clear answers for your system</p>
+                <p className="text-sm font-semibold text-white">Kaaliyaha AI</p>
+                <p className="text-[11px] text-slate-200">Jawaabo cad oo nidaamkaaga ah</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -304,15 +304,15 @@ const AIHelpAgent = () => {
                   setVoiceOutputEnabled((prev) => !prev);
                 }}
                 className="rounded-lg border border-white/20 bg-white/10 p-1.5 text-slate-100 hover:bg-white/20"
-                aria-label={voiceOutputEnabled ? 'Disable voice output' : 'Enable voice output'}
-                title={voiceOutputEnabled ? 'Voice on' : 'Voice off'}
+                aria-label={voiceOutputEnabled ? 'Demi codka jawaabta' : 'Shid codka jawaabta'}
+                title={voiceOutputEnabled ? 'Codku wuu shidan yahay' : 'Codku wuu dansan yahay'}
               >
                 {voiceOutputEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
               </button>
               <label className="ai-agent-lang">
                 <Languages size={13} />
                 <select value={language} onChange={(e) => setLanguage(e.target.value)}>
-                  <option value="auto">Auto</option>
+                  <option value="auto">Toos</option>
                   <option value="en">EN</option>
                   <option value="so">SO</option>
                 </select>
@@ -321,7 +321,7 @@ const AIHelpAgent = () => {
                 type="button"
                 onClick={() => setOpen(false)}
                 className="rounded-lg border border-white/20 bg-white/10 p-1.5 text-slate-100 hover:bg-white/20"
-                aria-label="Close AI assistant"
+                aria-label="Xir kaaliyaha AI"
               >
                 <X size={14} />
               </button>
@@ -338,7 +338,7 @@ const AIHelpAgent = () => {
               <div className="ai-msg ai-msg-assistant">
                 <p className="inline-flex items-center gap-2">
                   <Loader2 size={13} className="animate-spin" />
-                  Thinking for 1 second...
+                  Waan ka fikirayaa 1 ilbiriqsi...
                 </p>
               </div>
             )}
@@ -370,7 +370,7 @@ const AIHelpAgent = () => {
               onClick={listening ? stopListening : startListening}
               disabled={!voiceInputSupported || sending}
               className={`btn-secondary px-3 py-2 ${listening ? 'border-red-200 bg-red-50 text-red-600' : ''}`}
-              title={voiceInputSupported ? (listening ? 'Stop listening' : 'Speak your question') : 'Voice input not supported'}
+              title={voiceInputSupported ? (listening ? 'Jooji dhegeysiga' : "Ku hadal su'aashaada") : 'Gelinta codka ma taageersana'}
             >
               <Mic size={14} />
             </button>
@@ -378,7 +378,7 @@ const AIHelpAgent = () => {
               type="text"
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder={listening ? 'Listening...' : 'Ask or speak about this system...'}
+              placeholder={listening ? 'Waan dhegeysanayaa...' : 'Wax ka weydii ama ka hadal nidaamkan...'}
               className="ai-agent-input"
             />
             <button type="submit" className="btn-primary px-3 py-2" disabled={sending || !input.trim()}>
@@ -388,9 +388,9 @@ const AIHelpAgent = () => {
           <div className="px-3 pb-2 text-[11px] text-slate-500">
             {voiceInputSupported
               ? (listening
-                ? 'Listening now... Speak in English or Somali.'
-                : 'Voice ready: speak in English or Somali.')
-              : 'Voice input is not available in this browser.'}
+                ? 'Hadda waan dhegeysanayaa... Ku hadal English ama Somali.'
+                : 'Codku waa diyaar: ku hadal English ama Somali.')
+              : 'Gelinta codka kama shaqeyso browser-kan.'}
           </div>
         </section>
       )}
@@ -399,10 +399,10 @@ const AIHelpAgent = () => {
         type="button"
         className="ai-agent-toggle"
         onClick={() => setOpen((prev) => !prev)}
-        aria-label={open ? 'Hide AI assistant' : 'Show AI assistant'}
+        aria-label={open ? 'Qari kaaliyaha AI' : 'Muuji kaaliyaha AI'}
       >
         <MessageCircle size={18} />
-        <span>{open ? 'Hide Help' : 'AI Help'}</span>
+        <span>{open ? 'Qari Caawinta' : 'Caawinta AI'}</span>
       </button>
     </div>
   );

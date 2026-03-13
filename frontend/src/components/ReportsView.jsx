@@ -8,10 +8,10 @@ const API_BASE_URL = 'http://localhost:5010';
 const DEFAULT_SOS_PER_USD = 28;
 
 const PERIOD_OPTIONS = [
-  { value: 'daily', label: 'Daily' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'yearly', label: 'Yearly' },
+  { value: 'daily', label: 'Maalinle' },
+  { value: 'weekly', label: 'Usbuucle' },
+  { value: 'monthly', label: 'Bille' },
+  { value: 'yearly', label: 'Sanadle' },
 ];
 
 const formatNumber = (value, minimumFractionDigits = 2, maximumFractionDigits = 2) =>
@@ -21,6 +21,17 @@ const formatNumber = (value, minimumFractionDigits = 2, maximumFractionDigits = 
   }).format(Number(value || 0));
 
 const formatMoney = (value, currencyCode = 'SOS') => `${currencyCode} ${formatNumber(value)}`;
+const PERIOD_LABELS = {
+  daily: 'Maalinle',
+  weekly: 'Usbuucle',
+  monthly: 'Bille',
+  yearly: 'Sanadle',
+  'previous period': 'muddadii hore',
+};
+const PAYMENT_TYPE_LABELS = {
+  CASH: 'Kaash',
+  CREDIT: 'Dayn',
+};
 
 const getUsdEquivalent = (value, currencyCode = 'SOS', exchangeRate = DEFAULT_SOS_PER_USD) => {
   const amount = Number(value || 0);
@@ -97,29 +108,29 @@ const getMetricDisplay = (currencyTotals, fallbackValue, fallbackCurrency = 'SOS
 };
 
 const formatDateTime = (value) => {
-  if (!value) return 'N/A';
+  if (!value) return 'Ma jiro';
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'N/A';
+  if (Number.isNaN(date.getTime())) return 'Ma jiro';
 
   return date.toLocaleString();
 };
 
 const formatDateOnly = (value) => {
-  if (!value) return 'N/A';
+  if (!value) return 'Ma jiro';
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'N/A';
+  if (Number.isNaN(date.getTime())) return 'Ma jiro';
 
   return date.toLocaleDateString();
 };
 
 const formatItems = (items = []) => {
-  if (!Array.isArray(items) || items.length === 0) return 'No items';
+  if (!Array.isArray(items) || items.length === 0) return 'Wax alaab ah ma jiro';
 
   return items
     .map((item) => {
-      const name = item.medicineName || item.name || item.medicine?.name || 'Medicine';
+      const name = item.medicineName || item.name || item.medicine?.name || 'Daawo';
       const quantity = item.quantity ?? item.units ?? item.unitsSold ?? 0;
       return `${name} x${quantity}`;
     })
@@ -314,14 +325,14 @@ const getComparison = (currentValue, previousValue, previousLabel) => {
   if (previous === 0 && current === 0) {
     return {
       tone: 'neutral',
-      label: `No activity in ${previousLabel.toLowerCase()}`,
+      label: `${previousLabel.toLowerCase()} wax dhaqdhaqaaq ah kama jirin`,
     };
   }
 
   if (previous === 0) {
     return {
       tone: 'neutral',
-      label: `No previous data for ${previousLabel.toLowerCase()}`,
+      label: `${previousLabel.toLowerCase()} xog hore looma hayo`,
     };
   }
 
@@ -330,7 +341,7 @@ const getComparison = (currentValue, previousValue, previousLabel) => {
 
   return {
     tone: diff > 0 ? 'positive' : diff < 0 ? 'negative' : 'neutral',
-    label: `${diff >= 0 ? '+' : ''}${percent.toFixed(1)}% vs ${previousLabel.toLowerCase()}`,
+    label: `${diff >= 0 ? '+' : ''}${percent.toFixed(1)}% marka loo eego ${previousLabel.toLowerCase()}`,
   };
 };
 
@@ -383,13 +394,13 @@ function ReportsView({ endpoint, title, subtitle }) {
   const loadReport = async ({ silent = false } = {}) => {
     const token = user?.token;
     if (!token) {
-      setError('Login token is missing.');
+      setError('Token-ka gelitaanka waa maqan yahay.');
       setLoading(false);
       return;
     }
 
     if ((startDate && !endDate) || (!startDate && endDate)) {
-      setError('Select both start date and end date to load a custom report.');
+      setError('Dooro taariikhda bilowga iyo dhammaadka si warbixin gaar ah loo soo saaro.');
       setLoading(false);
       setSubmitting(false);
       return;
@@ -424,7 +435,7 @@ function ReportsView({ endpoint, title, subtitle }) {
 
       setReport(data);
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Failed to load report data.');
+      setError(requestError.response?.data?.message || 'Soo dejinta xogta warbixinta way fashilantay.');
     } finally {
       setLoading(false);
       setSubmitting(false);
@@ -474,6 +485,8 @@ function ReportsView({ endpoint, title, subtitle }) {
   const currencyCode = report?.displayCurrency || 'SOS';
   const exchangeRate = Number(report?.exchangeRate || convertUsdToSos(1) || DEFAULT_SOS_PER_USD);
   const medicineLookup = buildMedicineLookup(medicines);
+  const currentPeriodLabel = PERIOD_LABELS[periodRange.currentLabel?.toLowerCase?.()] || periodRange.currentLabel || 'Ma jiro';
+  const previousPeriodLabel = PERIOD_LABELS[periodRange.previousLabel?.toLowerCase?.()] || periodRange.previousLabel || 'muddadii hore';
   const moneyReceivedDisplay = getMetricDisplay(report?.currencyTotals?.actualMoneyReceived, report?.actualMoneyReceived, currencyCode);
   const debtCollectionsDisplay = getMetricDisplay(report?.currencyTotals?.debtCollectionsAmount, report?.debtCollectionsAmount, currencyCode);
   const totalRevenueDisplay = getMetricDisplay(report?.currencyTotals?.totalRevenue, report?.totalRevenue, currencyCode);
@@ -484,31 +497,31 @@ function ReportsView({ endpoint, title, subtitle }) {
   const moneyComparison = getComparison(
     report?.actualMoneyReceived,
     previous.actualMoneyReceived,
-    periodRange.previousLabel || 'previous period',
+    previousPeriodLabel,
   );
   const salesComparison = getComparison(
     report?.totalRevenue,
     previous.totalRevenue,
-    periodRange.previousLabel || 'previous period',
+    previousPeriodLabel,
   );
   const profitComparison = getComparison(
     report?.totalProfit,
     previous.totalProfit,
-    periodRange.previousLabel || 'previous period',
+    previousPeriodLabel,
   );
   const ordersComparison = getComparison(
     report?.orderCount,
     previous.orderCount,
-    periodRange.previousLabel || 'previous period',
+    previousPeriodLabel,
   );
 
   const activeRangeLabel = hasDateRange
-    ? `${startDate} to ${endDate}`
+    ? `${startDate} ilaa ${endDate}`
     : report
-      ? `${formatDateOnly(periodRange.currentStart)} to ${formatDateOnly(
+      ? `${formatDateOnly(periodRange.currentStart)} ilaa ${formatDateOnly(
           new Date(new Date(periodRange.currentEnd).getTime() - 86400000),
         )}`
-      : 'N/A';
+      : 'Ma jiro';
 
   return (
     <section className="page-section">
@@ -520,14 +533,14 @@ function ReportsView({ endpoint, title, subtitle }) {
             {report ? (
               <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-secondary-light px-3 py-1 text-xs font-semibold text-secondary">
                 <CalendarDays size={14} />
-                {hasDateRange ? 'Date Filter' : periodRange.currentLabel}: {activeRangeLabel}
+                {hasDateRange ? 'Shaandhada Taariikhda' : currentPeriodLabel}: {activeRangeLabel}
               </p>
             ) : null}
           </div>
 
           <div className="grid w-full gap-3 md:grid-cols-4 lg:max-w-4xl">
             <div>
-              <label htmlFor="report-period">Report Filter</label>
+              <label htmlFor="report-period">Shaandhada Warbixinta</label>
               <select
                 id="report-period"
                 value={period}
@@ -543,7 +556,7 @@ function ReportsView({ endpoint, title, subtitle }) {
             </div>
 
             <div>
-              <label htmlFor="report-start-date">From</label>
+              <label htmlFor="report-start-date">Laga bilaabo</label>
               <input
                 id="report-start-date"
                 type="date"
@@ -554,7 +567,7 @@ function ReportsView({ endpoint, title, subtitle }) {
             </div>
 
             <div>
-              <label htmlFor="report-end-date">To</label>
+              <label htmlFor="report-end-date">Ilaa</label>
               <input
                 id="report-end-date"
                 type="date"
@@ -567,7 +580,7 @@ function ReportsView({ endpoint, title, subtitle }) {
             <div className="flex items-end gap-2">
               <button type="button" onClick={() => loadReport()} disabled={submitting} className="btn-primary flex-1">
                 <RefreshCcw size={16} />
-                {submitting ? 'Loading...' : 'Apply'}
+                {submitting ? 'Waa la soo dejinayaa...' : 'Codso'}
               </button>
               <button
                 type="button"
@@ -578,7 +591,7 @@ function ReportsView({ endpoint, title, subtitle }) {
                 disabled={submitting || (!startDate && !endDate)}
                 className="btn-secondary"
               >
-                Clear Dates
+                Nadiifi Taariikhaha
               </button>
             </div>
           </div>
@@ -593,7 +606,7 @@ function ReportsView({ endpoint, title, subtitle }) {
 
       {loading ? (
         <div className="card">
-          <p className="text-sm text-medical-muted">Loading report data...</p>
+          <p className="text-sm text-medical-muted">Xogta warbixinta waa la soo dejinayaa...</p>
         </div>
       ) : null}
 
@@ -602,38 +615,38 @@ function ReportsView({ endpoint, title, subtitle }) {
           <div className="metrics-grid">
             <MetricCard
               icon={Wallet}
-              label="Money Received"
+              label="Lacagta La Helay"
               value={moneyReceivedDisplay.primary}
               secondaryValue={moneyReceivedDisplay.secondary}
-              hint="Cash sales plus debt collections in the selected period."
+              hint="Iibka kaashka ah iyo lacagaha daymaha la ururiyey muddadan la doortay."
               comparison={moneyComparison}
             />
             <MetricCard
               icon={CreditCard}
-              label="Debt Collections"
+              label="Ururinta Daymaha"
               value={debtCollectionsDisplay.primary}
               secondaryValue={debtCollectionsDisplay.secondary}
-              hint="Money paid later by customers with debt."
+              hint="Lacagta ay dambe ku bixiyeen macaamiisha daynta leh."
               comparison={getComparison(
                 report.debtCollectionsAmount,
                 previous.debtCollectionsAmount,
-                periodRange.previousLabel || 'previous period',
+                previousPeriodLabel,
               )}
             />
             <MetricCard
               icon={TrendingUp}
-              label="Total Sales Value"
+              label="Wadarta Qiimaha Iibka"
               value={totalRevenueDisplay.primary}
               secondaryValue={totalRevenueDisplay.secondary}
-              hint="All invoices created in the selected period."
+              hint="Dhammaan biilasha la sameeyey muddadan la doortay."
               comparison={salesComparison}
             />
             <MetricCard
               icon={Users}
-              label="Net Profit"
+              label="Faa'iidada Saafiga ah"
               value={totalProfitDisplay.primary}
               secondaryValue={totalProfitDisplay.secondary}
-              hint="Profit from sales booked in the selected period."
+              hint="Faa'iidada laga helay iibka la diiwaangeliyey muddadan."
               comparison={profitComparison}
             />
           </div>
@@ -641,40 +654,40 @@ function ReportsView({ endpoint, title, subtitle }) {
           <div className="metrics-grid">
             <MetricCard
               icon={CreditCard}
-              label="Outstanding Debt"
+              label="Daynta Harsan"
               value={totalDebtDisplay.primary}
               secondaryValue={totalDebtDisplay.secondary}
-              hint="Current unpaid debt still remaining in the system."
+              hint="Daynta aan weli la bixin ee nidaamka ku harsan."
             />
             <MetricCard
               icon={Wallet}
-              label="Cash Sales"
+              label="Iibka Kaashka"
               value={cashRevenueDisplay.primary}
               secondaryValue={cashRevenueDisplay.secondary}
-              hint="Cash invoices created in the selected period."
+              hint="Biilasha kaashka ah ee la sameeyey muddadan."
               comparison={getComparison(
                 report.cashRevenue,
                 previous.cashRevenue,
-                periodRange.previousLabel || 'previous period',
+                previousPeriodLabel,
               )}
             />
             <MetricCard
               icon={CreditCard}
-              label="Credit Sales"
+              label="Iibka Daynta"
               value={creditRevenueDisplay.primary}
               secondaryValue={creditRevenueDisplay.secondary}
-              hint="Credit invoices created in the selected period."
+              hint="Biilasha daynta ah ee la sameeyey muddadan."
               comparison={getComparison(
                 report.creditRevenue,
                 previous.creditRevenue,
-                periodRange.previousLabel || 'previous period',
+                previousPeriodLabel,
               )}
             />
             <MetricCard
               icon={Users}
-              label="Invoices"
+              label="Biilal"
               value={String(report.orderCount || 0)}
-              hint="Number of sales in the selected period."
+              hint="Tirada iibka ee muddadan la doortay."
               comparison={ordersComparison}
             />
           </div>
@@ -682,24 +695,24 @@ function ReportsView({ endpoint, title, subtitle }) {
           <div className="card">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Report Reading</h2>
+                <h2 className="text-lg font-semibold text-slate-900">Akhrinta Warbixinta</h2>
                 <p className="text-sm text-medical-muted">
-                  USD in medicine purchases uses the medicine sale prices for the ordered amount whenever that price exists in your saved data.
+                  Qiimaha USD ee iibsiga daawada waxa uu adeegsanayaa qiimaha iibka daawada ee tirada la dalbaday marka xogtaas kaydsan ay jirto.
                 </p>
               </div>
               <div className="rounded-2xl bg-primary-light px-4 py-3 text-sm text-primary-dark">
-                <p className="font-semibold">{hasDateRange ? 'Date Filter' : periodRange.currentLabel}</p>
+                <p className="font-semibold">{hasDateRange ? 'Shaandhada Taariikhda' : currentPeriodLabel}</p>
                 <p>{activeRangeLabel}</p>
-                <p className="mt-1 text-xs text-medical-muted">USD conversion rate: 1 USD = {formatNumber(convertUsdToSos(1))} SOS</p>
+                <p className="mt-1 text-xs text-medical-muted">Sarrifka USD: 1 USD = {formatNumber(convertUsdToSos(1))} SOS</p>
               </div>
             </div>
           </div>
 
           <div className="card">
             <div className="mb-4">
-              <h2 className="text-lg font-semibold text-slate-900">Filtered Money Collections</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Lacagaha La Ururiyey ee La Shaandheeyey</h2>
               <p className="text-sm text-medical-muted">
-                Customers who paid money during the selected daily, monthly, yearly, or custom time.
+                Macaamiishii lacag bixiyey muddada maalinle, bille, sanadle, ama gaarka ah ee la doortay.
               </p>
             </div>
 
@@ -708,25 +721,25 @@ function ReportsView({ endpoint, title, subtitle }) {
                 <table className="data-table striped-table">
                   <thead>
                     <tr>
-                      <th>Customer</th>
-                      <th>Invoice</th>
-                      <th>Amount Collected</th>
-                      <th>USD Value</th>
-                      <th>Paid At</th>
-                      <th>Type</th>
+                      <th>Macmiil</th>
+                      <th>Biil</th>
+                      <th>Lacagta La Ururiyey</th>
+                      <th>Qiimaha USD</th>
+                      <th>La Bixiyey</th>
+                      <th>Nooca</th>
                     </tr>
                   </thead>
                   <tbody>
                     {report.customerCollections.map((collection, index) => (
                       <tr key={`${collection.invoiceNumber || 'collection'}-${collection.paidAt || index}-${index}`}>
-                        <td>{collection.customerName || 'Walk-in Customer'}</td>
-                        <td>{collection.invoiceNumber || 'N/A'}</td>
+                        <td>{collection.customerName || 'Macmiil Toos U Yimid'}</td>
+                        <td>{collection.invoiceNumber || 'Ma jiro'}</td>
                         <td className="font-semibold text-secondary">{formatMoney(collection.amount, collection.currency || currencyCode)}</td>
                         <td>{getUsdEquivalent(collection.amount, collection.currency || currencyCode, exchangeRate)}</td>
                         <td>{formatDateTime(collection.paidAt)}</td>
                         <td>
                           <span className="status-chip bg-secondary-light text-secondary">
-                            {collection.source === 'INITIAL' ? 'Initial Payment' : 'Debt Collection'}
+                            {collection.source === 'INITIAL' ? 'Lacag-bixintii Hore' : 'Ururinta Daynta'}
                           </span>
                         </td>
                       </tr>
@@ -736,17 +749,17 @@ function ReportsView({ endpoint, title, subtitle }) {
               </div>
             ) : (
               <EmptyState
-                title="No customer collections in this filter"
-                subtitle="When customers pay debt during the selected period, they will appear here."
+                title="Shaandhadan lacag ururin macmiil kuma jiro"
+                subtitle="Marka macaamiishu bixiyaan dayn muddadan la doortay, halkan ayay ka muuqan doonaan."
               />
             )}
           </div>
 
           <div className="card">
             <div className="mb-4">
-              <h2 className="text-lg font-semibold text-slate-900">Filtered Customer Purchases</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Iibsiyada Macaamiisha ee La Shaandheeyey</h2>
               <p className="text-sm text-medical-muted">
-                Customers who bought medicines in the selected report period.
+                Macaamiishii daawooyin iibsaday muddada warbixinta la doortay.
               </p>
             </div>
 
@@ -755,20 +768,20 @@ function ReportsView({ endpoint, title, subtitle }) {
                 <table className="data-table striped-table">
                   <thead>
                     <tr>
-                      <th>Customer</th>
-                      <th>Invoice</th>
-                      <th>Medicines</th>
-                      <th>Payment Type</th>
-                      <th>Total</th>
-                      <th>USD Value</th>
-                      <th>Created At</th>
+                      <th>Macmiil</th>
+                      <th>Biil</th>
+                      <th>Daawooyin</th>
+                      <th>Nooca Lacag-bixinta</th>
+                      <th>Wadar</th>
+                      <th>Qiimaha USD</th>
+                      <th>La Sameeyey</th>
                     </tr>
                   </thead>
                   <tbody>
                     {report.customerPurchases.map((purchase, index) => (
                       <tr key={`${purchase.invoiceNumber || 'purchase'}-${index}`}>
-                        <td>{purchase.customerName || 'Walk-in Customer'}</td>
-                        <td>{purchase.invoiceNumber || 'N/A'}</td>
+                        <td>{purchase.customerName || 'Macmiil Toos U Yimid'}</td>
+                        <td>{purchase.invoiceNumber || 'Ma jiro'}</td>
                         <td className="max-w-md">{formatItems(purchase.items)}</td>
                         <td>
                           <span
@@ -778,7 +791,7 @@ function ReportsView({ endpoint, title, subtitle }) {
                                 : 'bg-secondary-light text-secondary'
                             }`}
                           >
-                            {purchase.paymentType || 'N/A'}
+                            {PAYMENT_TYPE_LABELS[purchase.paymentType] || purchase.paymentType || 'Ma jiro'}
                           </span>
                         </td>
                         <td className="font-semibold">{formatMoney(purchase.totalAmount, purchase.currency || currencyCode)}</td>
@@ -791,8 +804,8 @@ function ReportsView({ endpoint, title, subtitle }) {
               </div>
             ) : (
               <EmptyState
-                title="No customer purchases in this filter"
-                subtitle="When customers buy medicine in the selected period, the purchases will appear here."
+                title="Shaandhadan wax iibsiyo macaamiil kuma jiraan"
+                subtitle="Marka macaamiishu daawo iibsadaan muddadan la doortay, halkan ayay ka muuqan doonaan."
               />
             )}
           </div>

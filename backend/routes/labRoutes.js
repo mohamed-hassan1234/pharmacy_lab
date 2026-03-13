@@ -8,7 +8,7 @@ const Patient = require('../models/Patient');
 // @desc    Create Lab Request (Doctor Only)
 router.post('/requests', protect, authorize('Doctor', 'Admin'), async (req, res) => {
     try {
-        const { patient, patientId, patientName, age, sex, requestedTests } = req.body;
+        const { patient, patientId, patientName, age, sex, requestedTests, requestedTestInput } = req.body;
 
 
 
@@ -26,6 +26,7 @@ router.post('/requests', protect, authorize('Doctor', 'Admin'), async (req, res)
             doctorId: req.user._id,
             doctorName: req.user.name,
             requestedTests,
+            requestedTestInput,
             status: 'Awaiting Payment'
         });
 
@@ -137,14 +138,17 @@ router.get('/search', protect, authorize('Lab Technician', 'Doctor', 'Cashier', 
 // @desc    Enter/Update Lab Results (Lab Technician, Cashier, Admin)
 router.patch('/requests/:id/results', protect, authorize('Lab Technician', 'Cashier', 'Admin'), async (req, res) => {
     try {
-        const { results } = req.body;
+        const { results, resultText } = req.body;
         const request = await LabRequest.findById(req.params.id);
 
         if (!request) {
             return res.status(404).json({ message: 'Lab request not found' });
         }
 
-        request.results = results;
+        if (results) {
+            request.results = results;
+        }
+        request.resultText = typeof resultText === 'string' ? resultText : '';
         request.status = 'Awaiting Doctor'; // Changed to Awaiting Doctor
         request.resultEnteredBy = req.user._id;
         request.resultEnteredAt = new Date();
@@ -208,6 +212,66 @@ router.patch('/requests/:id/conclusion', protect, authorize('Doctor', 'Admin'), 
 });
 
 // @desc    Finalize Request (Sent to Cashier)
+router.patch('/requests/:id/send-to-cashier', protect, authorize('Doctor', 'Admin'), async (req, res) => {
+    try {
+        const { conclusion, physicalExamination, medicines } = req.body;
+        const request = await LabRequest.findById(req.params.id);
+
+        if (!request) {
+            return res.status(404).json({ message: 'Lab request not found' });
+        }
+        if (!conclusion || !String(conclusion).trim()) {
+            return res.status(400).json({ message: 'Doctor note is required before sending to cashier' });
+        }
+
+        request.doctorConclusion = String(conclusion).trim();
+        request.physicalExamination = physicalExamination;
+        request.medicines = Array.isArray(medicines) ? medicines : [];
+        request.cashierResponse = '';
+        request.cashierRespondedAt = undefined;
+        request.cashierRespondedBy = undefined;
+        request.sentToCashierAt = new Date();
+        request.doctorConclusionAt = new Date();
+        request.status = 'Sent to Cashier';
+
+        await request.save();
+
+        res.json(request);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+});
+
+// @desc    Cashier Response Back to Doctor
+router.patch('/requests/:id/cashier-response', protect, authorize('Cashier', 'Admin'), async (req, res) => {
+    try {
+        const { cashierResponse } = req.body;
+        const request = await LabRequest.findById(req.params.id);
+
+        if (!request) {
+            return res.status(404).json({ message: 'Lab request not found' });
+        }
+        if (!cashierResponse || !String(cashierResponse).trim()) {
+            return res.status(400).json({ message: 'Cashier response is required' });
+        }
+        if (!['Sent to Cashier', 'Cashier Responded'].includes(request.status)) {
+            return res.status(400).json({ message: 'This request is not waiting for cashier feedback' });
+        }
+
+        request.cashierResponse = String(cashierResponse).trim();
+        request.cashierRespondedAt = new Date();
+        request.cashierRespondedBy = req.user._id;
+        request.status = 'Cashier Responded';
+
+        await request.save();
+
+        res.json(request);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+});
+
+// @desc    Finalize Request After Cashier Response
 router.patch('/requests/:id/finalize', protect, authorize('Doctor', 'Admin'), async (req, res) => {
     try {
         const { conclusion, physicalExamination, medicines, prescriptionId } = req.body;
@@ -223,6 +287,7 @@ router.patch('/requests/:id/finalize', protect, authorize('Doctor', 'Admin'), as
         request.medicines = medicines;
         if (prescriptionId) request.prescriptionId = prescriptionId;
         request.doctorConclusionAt = new Date();
+        request.finalDecisionAt = new Date();
         request.status = 'Completed';
 
         await request.save();

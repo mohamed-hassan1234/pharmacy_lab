@@ -102,7 +102,7 @@ const MedicineRegistration = () => {
             resetForm();
             fetchMedicines();
         } catch (err) {
-            alert(err.response?.data?.message || 'Failed');
+            alert(err.response?.data?.message || 'Way fashilantay.');
         } finally {
             setLoading(false);
         }
@@ -129,7 +129,7 @@ const MedicineRegistration = () => {
     };
 
     const handleDelete = async (medicine) => {
-        if (!window.confirm(`Delete ${medicine.name}?`)) return;
+        if (!window.confirm(`${medicine.name} ma tirtiraysaa?`)) return;
 
         try {
             await axios.delete(`http://localhost:5010/api/inventory/medicines/${medicine._id}`, authConfig());
@@ -138,7 +138,7 @@ const MedicineRegistration = () => {
             }
             fetchMedicines();
         } catch (err) {
-            alert(err.response?.data?.message || 'Failed to delete medicine');
+            alert(err.response?.data?.message || 'Tirtirka daawadu wuu fashilmay.');
         }
     };
 
@@ -151,21 +151,21 @@ const MedicineRegistration = () => {
     return (
         <div className="page-section animate-in fade-in duration-500">
             <div className="section-header">
-                <h2 className="section-title">Medicine Form & Stock Table</h2>
-                <p className="section-subtitle">Add, update, delete, and review medicine stock using your real inventory data.</p>
+                <h2 className="section-title">Foomka Daawada iyo Jadwalka Kaydka</h2>
+                <p className="section-subtitle">Ku dar, cusboonaysii, tirtir, oo eeg kaydka daawada adigoo adeegsanaya xogta kaydkaaga dhabta ah.</p>
             </div>
 
             <div className="form-template">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h3 className="form-template-title">{editingMedicine ? 'Update Medicine' : 'Basic Form Elements'}</h3>
+                        <h3 className="form-template-title">{editingMedicine ? 'Cusboonaysii Daawada' : 'Qaybaha Aasaasiga ah ee Foomka'}</h3>
                         <p className="form-template-subtitle">
-                            {editingMedicine ? `Editing ${editingMedicine.name}` : 'Add medicine details, pricing, quantity, and expiry information.'}
+                            {editingMedicine ? `Waxaad wax ka beddelaysaa ${editingMedicine.name}` : 'Ku dar faahfaahinta daawada, qiimaha, tirada, iyo taariikhda dhicitaanka.'}
                         </p>
                     </div>
                     {editingMedicine && (
                         <button type="button" onClick={resetForm} className="btn-secondary px-4 py-2 text-xs uppercase">
-                            <X size={14} /> Cancel Edit
+                            <X size={14} /> Jooji Wax-ka-beddelka
                         </button>
                     )}
                 </div>
@@ -173,32 +173,32 @@ const MedicineRegistration = () => {
                 <form onSubmit={handleSubmit} className="form-template-row">
                     <div className="form-grid">
                         <div>
-                            <label>Medicine name</label>
+                            <label>Magaca daawada</label>
                             <input
                                 type="text"
-                                placeholder="Name"
+                                placeholder="Magac"
                                 value={formData.name}
                                 onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                                 required
                             />
                         </div>
                         <div>
-                            <label>Category</label>
+                            <label>Qaybta</label>
                             <input
                                 type="text"
-                                placeholder="Category"
+                                placeholder="Qayb"
                                 value={formData.category}
                                 onChange={(e) => setFormData((prev) => ({ ...prev, category: e.target.value }))}
                             />
                         </div>
                         <div>
-                            <label>Supplier</label>
+                            <label>Alaab-qeybiye</label>
                             <select
                                 value={formData.supplierId}
                                 onChange={(e) => setFormData((prev) => ({ ...prev, supplierId: e.target.value }))}
                                 required
                             >
-                                <option value="">Select supplier</option>
+                                <option value="">Dooro alaab-qeybiye</option>
                                 {suppliers.map((supplier) => (
                                     <option key={supplier._id} value={supplier._id}>
                                         {supplier.name}
@@ -207,7 +207,7 @@ const MedicineRegistration = () => {
                             </select>
                         </div>
                         <div>
-                            <label>Expiry date</label>
+                            <label>Taariikhda dhicitaanka</label>
                             <input
                                 type="date"
                                 value={formData.expiryDate}
@@ -219,44 +219,44 @@ const MedicineRegistration = () => {
 
                     <div className="form-grid">
                         <div>
-                            <label>Purchase price per box (USD)</label>
+                            <label>Qiimaha iibsiga halkii kartoon (USD)</label>
                             <input type="number" step="0.01" placeholder="USD" value={usdInput.purchase} onChange={(e) => handleUsdChange('purchase', e.target.value)} />
                         </div>
                         <div>
-                            <label>Purchase price per box (SOS)</label>
+                            <label>Qiimaha iibsiga halkii kartoon (SOS)</label>
                             <input type="number" placeholder="SOS" value={formData.purchasePricePerBox} onChange={(e) => handleSosChange('purchase', e.target.value)} required />
                         </div>
                         <div>
-                            <label>Selling price per unit (USD)</label>
+                            <label>Qiimaha iibka halkii xabbo (USD)</label>
                             <input type="number" step="0.01" placeholder="USD" value={usdInput.selling} onChange={(e) => handleUsdChange('selling', e.target.value)} />
                         </div>
                         <div>
-                            <label>Selling price per unit (SOS)</label>
+                            <label>Qiimaha iibka halkii xabbo (SOS)</label>
                             <input type="number" placeholder="SOS" value={formData.sellingPricePerUnit} onChange={(e) => handleSosChange('selling', e.target.value)} required />
                         </div>
                         <div>
-                            <label>Selling price per box (USD)</label>
+                            <label>Qiimaha iibka halkii kartoon (USD)</label>
                             <input type="number" step="0.01" placeholder="USD" value={usdInput.sellingBox} onChange={(e) => handleUsdChange('sellingBox', e.target.value)} />
                         </div>
                         <div>
-                            <label>Selling price per box (SOS)</label>
+                            <label>Qiimaha iibka halkii kartoon (SOS)</label>
                             <input type="number" placeholder="SOS" value={formData.sellingPricePerBox} onChange={(e) => handleSosChange('sellingBox', e.target.value)} required />
                         </div>
                         <div>
-                            <label>Units per box</label>
+                            <label>Xabbo halkii kartoon</label>
                             <input
                                 type="number"
-                                placeholder="Units"
+                                placeholder="Xabbo"
                                 value={formData.unitsPerBox}
                                 onChange={(e) => setFormData((prev) => ({ ...prev, unitsPerBox: e.target.value }))}
                                 required
                             />
                         </div>
                         <div>
-                            <label>{editingMedicine ? 'Boxes in stock' : 'Boxes bought'}</label>
+                            <label>{editingMedicine ? 'Kartoonnada kaydka ku jira' : 'Kartoonnada la iibsaday'}</label>
                             <input
                                 type="number"
-                                placeholder="Boxes"
+                                placeholder="Kartoon"
                                 value={formData.boxesBought}
                                 onChange={(e) => setFormData((prev) => ({ ...prev, boxesBought: e.target.value }))}
                                 required
@@ -267,11 +267,11 @@ const MedicineRegistration = () => {
                     <div className="flex flex-wrap gap-3">
                         <button type="submit" disabled={loading} className="btn-primary px-6">
                             <Plus size={16} />
-                            {loading ? 'Saving...' : (editingMedicine ? 'Update medicine' : 'Add medicine')}
+                            {loading ? 'Waa la keydinayaa...' : (editingMedicine ? 'Cusboonaysii daawada' : 'Ku dar daawo')}
                         </button>
                         {editingMedicine && (
                             <button type="button" onClick={resetForm} className="btn-secondary px-6">
-                                Reset
+                                Nadiifi
                             </button>
                         )}
                     </div>
@@ -282,21 +282,21 @@ const MedicineRegistration = () => {
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <h3 className="chart-title flex items-center gap-2">
                         <Package size={18} className="text-primary" />
-                        Striped Table
+                        Jadwalka Kaydka
                     </h3>
-                    <p className="text-sm text-slate-500">Total inventory value: {totalInventoryValue.toLocaleString()} SOS</p>
+                    <p className="text-sm text-slate-500">Wadarta qiimaha kaydka: {totalInventoryValue.toLocaleString()} SOS</p>
                 </div>
 
                 <div className="table-shell">
                     <table className="data-table striped-table">
                         <thead>
                             <tr>
-                                <th>Medicine</th>
-                                <th>Supplier</th>
-                                <th>Progress</th>
-                                <th>Price (USD)</th>
-                                <th>Deadline</th>
-                                <th>Actions</th>
+                                <th>Daawo</th>
+                                <th>Alaab-qeybiye</th>
+                                <th>Heerka Kaydka</th>
+                                <th>Qiime (USD)</th>
+                                <th>Dhicitaan</th>
+                                <th>Falal</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -309,15 +309,15 @@ const MedicineRegistration = () => {
                                     <tr key={medicine._id}>
                                         <td>
                                             <p className="font-semibold text-slate-800">{medicine.name}</p>
-                                            <p className="text-xs text-slate-500">{medicine.category || 'General'}</p>
+                                            <p className="text-xs text-slate-500">{medicine.category || 'Guud'}</p>
                                         </td>
-                                        <td>{medicine.supplier?.name || 'Local Source'}</td>
+                                        <td>{medicine.supplier?.name || 'Isha Deegaanka'}</td>
                                         <td>
                                             <div className="h-2.5 w-full rounded-full bg-slate-200">
                                                 <div className="h-2.5 rounded-full" style={{ width: `${percent}%`, backgroundColor: progressColor }} />
                                             </div>
                                             <p className="mt-1 text-xs text-slate-500">
-                                                {(medicine.boxesInStock || 0).toLocaleString()} boxes / {totalUnits.toLocaleString()} units
+                                                {(medicine.boxesInStock || 0).toLocaleString()} kartoon / {totalUnits.toLocaleString()} xabbo
                                             </p>
                                         </td>
                                         <td>
@@ -344,7 +344,7 @@ const MedicineRegistration = () => {
                             })}
                             {medicines.length === 0 && (
                                 <tr>
-                                    <td colSpan="6" className="py-10 text-center text-slate-500">Inventory is empty.</td>
+                                    <td colSpan="6" className="py-10 text-center text-slate-500">Kaydku waa madhan yahay.</td>
                                 </tr>
                             )}
                         </tbody>

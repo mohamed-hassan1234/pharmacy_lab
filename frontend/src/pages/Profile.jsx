@@ -35,14 +35,14 @@ const Profile = () => {
             await axios.patch('http://localhost:5010/api/profile/me', formData, config);
             setEditMode(false);
             fetchProfile();
-            alert('Profile updated successfully!');
-        } catch (err) { alert(err.response?.data?.message || 'Error updating profile'); }
+            alert('Akoonka si guul leh ayaa loo cusboonaysiiyey!');
+        } catch (err) { alert(err.response?.data?.message || 'Cilad ayaa ka dhacday cusboonaysiinta koontada'); }
     };
 
     const handleChangePassword = async (e) => {
         e.preventDefault();
         if (passwordData.newPassword !== passwordData.confirmPassword) {
-            return alert('New passwords do not match!');
+            return alert('Furayaasha cusub isma waafaqsana!');
         }
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
@@ -52,19 +52,19 @@ const Profile = () => {
             }, config);
             setShowPasswordChange(false);
             setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-            alert('Password changed successfully!');
-        } catch (err) { alert(err.response?.data?.message || 'Error changing password'); }
+            alert('Furaha sirta si guul leh ayaa loo beddelay!');
+        } catch (err) { alert(err.response?.data?.message || 'Cilad ayaa ka dhacday beddelka furaha sirta'); }
     };
 
     const handleDeleteAccount = async () => {
-        if (!deletePassword) return alert('Please enter your password');
-        if (!confirm('Are you absolutely sure? This action cannot be undone!')) return;
+        if (!deletePassword) return alert('Fadlan geli furaha sirta');
+        if (!confirm('Ma hubtaa? Ficilkan dib looma celin karo!')) return;
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
             await axios.delete('http://localhost:5010/api/profile/me', { data: { password: deletePassword }, ...config });
             localStorage.removeItem('clinic_user');
             navigate('/login');
-        } catch (err) { alert(err.response?.data?.message || 'Error deleting account'); }
+        } catch (err) { alert(err.response?.data?.message || 'Cilad ayaa ka dhacday tirtirka koontada'); }
     };
 
     const handleLogout = () => {
@@ -82,15 +82,15 @@ const Profile = () => {
                 <div className="relative z-10 flex justify-between items-center">
                     <div>
                         <h1 className="text-5xl font-black text-white tracking-tighter mb-2 uppercase italic flex items-center gap-4">
-                            <User size={48} className="text-primary" /> My Profile
+                            <User size={48} className="text-primary" /> Akoonkayga
                         </h1>
-                        <p className="text-primary font-black text-sm uppercase tracking-[.3em]">Manage Your Account Settings</p>
+                        <p className="text-primary font-black text-sm uppercase tracking-[.3em]">Maamul Dejimaha Akoonkaaga</p>
                     </div>
                     <button
                         onClick={handleLogout}
                         className="bg-red-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-wider shadow-2xl hover:scale-105 transition-transform flex items-center gap-3"
                     >
-                        <LogOut size={24} /> Logout
+                        <LogOut size={24} /> Ka Bax
                     </button>
                 </div>
             </div>
@@ -118,28 +118,28 @@ const Profile = () => {
                 {!editMode ? (
                     <div className="space-y-4">
                         <div className="p-6 bg-slate-50 rounded-2xl">
-                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Full Name</p>
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Magaca Buuxa</p>
                             <p className="text-lg font-black text-slate-800">{user?.name}</p>
                         </div>
                         <div className="p-6 bg-slate-50 rounded-2xl">
-                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Email Address</p>
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Cinwaanka Iimaylka</p>
                             <p className="text-lg font-black text-slate-800">{user?.email}</p>
                         </div>
                         <div className="p-6 bg-slate-50 rounded-2xl">
-                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Account Created</p>
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Taariikhda La Sameeyey</p>
                             <p className="text-lg font-black text-slate-800">{new Date(user?.createdAt).toLocaleDateString()}</p>
                         </div>
                         <button
                             onClick={() => setEditMode(true)}
                             className="w-full bg-primary text-white font-black py-4 rounded-2xl uppercase tracking-wider shadow-xl hover:scale-[1.02] transition-transform"
                         >
-                            Edit Profile
+                            Wax Ka Beddel Akoonka
                         </button>
                     </div>
                 ) : (
                     <form onSubmit={handleUpdateProfile} className="space-y-4">
                         <div>
-                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Full Name</label>
+                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Magaca Buuxa</label>
                             <input
                                 type="text"
                                 className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold text-lg"
@@ -149,7 +149,7 @@ const Profile = () => {
                             />
                         </div>
                         <div>
-                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Email Address</label>
+                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Cinwaanka Iimaylka</label>
                             <input
                                 type="email"
                                 className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold text-lg"
@@ -164,13 +164,13 @@ const Profile = () => {
                                 onClick={() => setEditMode(false)}
                                 className="flex-1 bg-slate-100 text-slate-600 font-black py-4 rounded-2xl uppercase"
                             >
-                                Cancel
+                                Jooji
                             </button>
                             <button
                                 type="submit"
                                 className="flex-1 bg-primary text-white font-black py-4 rounded-2xl uppercase shadow-xl flex items-center justify-center gap-2"
                             >
-                                <Save size={20} /> Save Changes
+                                <Save size={20} /> Keydi Isbeddellada
                             </button>
                         </div>
                     </form>
@@ -180,20 +180,20 @@ const Profile = () => {
             {/* Security Section */}
             <div className="bg-white rounded-[2.5rem] shadow-lg border border-slate-100 p-10">
                 <h3 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
-                    <Lock className="text-primary" /> Security Settings
+                    <Lock className="text-primary" /> Dejimaha Amniga
                 </h3>
                 <div className="space-y-4">
                     <button
                         onClick={() => setShowPasswordChange(!showPasswordChange)}
                         className="w-full bg-blue-50 text-blue-600 font-black py-4 rounded-2xl uppercase tracking-wider border-2 border-blue-100 hover:bg-blue-100 transition-colors"
                     >
-                        Change Password
+                        Beddel Furaha Sirta
                     </button>
 
                     {showPasswordChange && (
                         <form onSubmit={handleChangePassword} className="space-y-4 p-6 bg-blue-50 rounded-2xl border-2 border-blue-100">
                             <div>
-                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Current Password</label>
+                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Furaha Hadda</label>
                                 <input
                                     type="password"
                                     className="w-full bg-white border-none rounded-2xl p-4 font-bold"
@@ -203,7 +203,7 @@ const Profile = () => {
                                 />
                             </div>
                             <div>
-                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">New Password</label>
+                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Furaha Cusub</label>
                                 <input
                                     type="password"
                                     className="w-full bg-white border-none rounded-2xl p-4 font-bold"
@@ -213,7 +213,7 @@ const Profile = () => {
                                 />
                             </div>
                             <div>
-                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Confirm New Password</label>
+                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Xaqiiji Furaha Cusub</label>
                                 <input
                                     type="password"
                                     className="w-full bg-white border-none rounded-2xl p-4 font-bold"
@@ -226,7 +226,7 @@ const Profile = () => {
                                 type="submit"
                                 className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl uppercase shadow-xl"
                             >
-                                Update Password
+                                Cusboonaysii Furaha
                             </button>
                         </form>
                     )}
@@ -235,14 +235,14 @@ const Profile = () => {
                         onClick={() => setShowDeleteAccount(!showDeleteAccount)}
                         className="w-full bg-red-50 text-red-600 font-black py-4 rounded-2xl uppercase tracking-wider border-2 border-red-100 hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
                     >
-                        <Trash2 size={20} /> Delete Account
+                        <Trash2 size={20} /> Tirtir Akoonka
                     </button>
 
                     {showDeleteAccount && (
                         <div className="p-6 bg-red-50 rounded-2xl border-2 border-red-100 space-y-4">
-                            <p className="text-sm font-bold text-red-600">⚠️ Warning: This action is permanent and cannot be undone!</p>
+                            <p className="text-sm font-bold text-red-600">Digniin: Ficilkani waa joogto mana la laaban karo!</p>
                             <div>
-                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Enter Your Password to Confirm</label>
+                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Geli Furahaaga Si Aad U Xaqiijiso</label>
                                 <input
                                     type="password"
                                     className="w-full bg-white border-none rounded-2xl p-4 font-bold"
@@ -254,7 +254,7 @@ const Profile = () => {
                                 onClick={handleDeleteAccount}
                                 className="w-full bg-red-600 text-white font-black py-4 rounded-2xl uppercase shadow-xl"
                             >
-                                Permanently Delete Account
+                                Si Joogto Ah U Tirtir Akoonka
                             </button>
                         </div>
                     )}

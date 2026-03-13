@@ -78,30 +78,30 @@ const CashierDashboard = () => {
         const max = Math.max(...values, 1);
         return [
             {
-                label: 'Total Sales',
+                label: 'Wadarta Iibka',
                 value: Number(stats?.totalSales) || 0,
-                note: `${stats?.nearExpiry || 0} near expiry`,
+                note: `${stats?.nearExpiry || 0} dhowr dhacaya`,
                 color: '#3b82f6',
                 icon: ShoppingCart
             },
             {
-                label: 'Customers',
+                label: 'Macaamiil',
                 value: Number(stats?.totalCustomers) || 0,
-                note: 'Registered customers',
+                note: 'Macaamiisha diiwaangashan',
                 color: '#84cc16',
                 icon: Users
             },
             {
-                label: 'Medicines',
+                label: 'Daawooyin',
                 value: Number(stats?.totalMedicines) || 0,
-                note: `${stats?.outOfStock || 0} low stock`,
+                note: `${stats?.outOfStock || 0} kayd yari`,
                 color: '#f59e0b',
                 icon: Package
             },
             {
-                label: 'Suppliers',
+                label: 'Alaab-qeybiyeyaasha',
                 value: Number(stats?.totalSuppliers) || 0,
-                note: 'Active suppliers',
+                note: 'Alaab-qeybiyeyaal firfircoon',
                 color: '#ef4444',
                 icon: Truck
             }
@@ -116,7 +116,7 @@ const CashierDashboard = () => {
             <div className="flex items-center justify-center h-screen">
                 <div className="text-center">
                     <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-slate-500 font-semibold">Loading Dashboard...</p>
+                    <p className="text-slate-500 font-semibold">Gudiga waa la soo dejinayaa...</p>
                 </div>
             </div>
         );
@@ -125,8 +125,8 @@ const CashierDashboard = () => {
     return (
         <div className="page-section animate-in fade-in duration-500">
             <div className="section-header">
-                <h1 className="section-title">Overview Dashboard</h1>
-                <p className="section-subtitle">Your live pharmacy data in the new dashboard layout.</p>
+                <h1 className="section-title">Guudmarka Gudiga</h1>
+                <p className="section-subtitle">Xogta farmashiyahaaga ee tooska ah ee qaabka cusub ee guddiga.</p>
             </div>
 
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-4">
@@ -153,13 +153,13 @@ const CashierDashboard = () => {
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
                 <div className="dashboard-chart-card xl:col-span-1 space-y-6">
                     <div>
-                        <h3 className="text-2xl font-bold text-slate-900">Recent Activity</h3>
-                        <p className="text-xs uppercase tracking-wide text-slate-500 mt-1">Live trend from your data</p>
+                        <h3 className="text-2xl font-bold text-slate-900">Dhaqdhaqaaqii Ugu Dambeeyey</h3>
+                        <p className="text-xs uppercase tracking-wide text-slate-500 mt-1">Isbeddel toos ah oo xogtaada ah</p>
                     </div>
 
                     <div className="rounded-xl border border-slate-200 p-4">
                         <div className="flex items-center justify-between mb-2">
-                            <p className="text-sm font-medium text-slate-600">Total Profit</p>
+                            <p className="text-sm font-medium text-slate-600">Wadarta Faa'iidada</p>
                             <span className="text-primary text-sm font-semibold">
                                 {stats?.totalProfit ? `+${Math.min(99, Math.round((stats.totalProfit / Math.max(stats.totalRevenue || 1, 1)) * 100))}%` : '0%'}
                             </span>
@@ -177,7 +177,7 @@ const CashierDashboard = () => {
 
                     <div className="rounded-xl border border-slate-200 p-4">
                         <div className="flex items-center justify-between mb-2">
-                            <p className="text-sm font-medium text-slate-600">Expenses</p>
+                            <p className="text-sm font-medium text-slate-600">Kharashaad</p>
                             <span className="text-sky-600 text-sm font-semibold">
                                 {stats?.totalRevenue ? `${Math.round((totalExpenses / Math.max(stats.totalRevenue, 1)) * 100)}%` : '0%'}
                             </span>
@@ -197,10 +197,10 @@ const CashierDashboard = () => {
                 <div className="dashboard-chart-card xl:col-span-2">
                     <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                         <h3 className="text-3xl font-bold text-slate-900">
-                            Revenue vs Cost <span className="text-slate-400 text-2xl">(monthly)</span>
+                            Dakhliga iyo Kharashka <span className="text-slate-400 text-2xl">(bille)</span>
                         </h3>
                         <p className="text-sm text-slate-500">
-                            Timezone: <span className="font-semibold text-slate-700">GMT-0400 Eastern Daylight Time</span>
+                            Aagga Saacadda: <span className="font-semibold text-slate-700">GMT-0400 Eastern Daylight Time</span>
                         </p>
                     </div>
                     <ResponsiveContainer width="100%" height={380}>
@@ -215,8 +215,8 @@ const CashierDashboard = () => {
                                 }}
                             />
                             <Legend />
-                            <Bar dataKey="revenue" name="Revenue" fill="#a855f7" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="cost" name="Cost" fill="#f87171" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="revenue" name="Dakhliga" fill="#a855f7" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="cost" name="Kharashka" fill="#f87171" radius={[4, 4, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
@@ -224,15 +224,15 @@ const CashierDashboard = () => {
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
                 <div className="card lg:col-span-2">
-                    <h3 className="chart-title">Financial Snapshot</h3>
+                    <h3 className="chart-title">Sawirka Maaliyadda</h3>
                     <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                            <p className="text-xs text-slate-500">Total Revenue</p>
+                            <p className="text-xs text-slate-500">Wadarta Dakhliga</p>
                             <p className="text-2xl font-bold text-slate-900">{Number(stats?.totalRevenue || 0).toLocaleString()} SOS</p>
                             <p className="text-xs text-slate-500">${convertSosToUsd(stats?.totalRevenue || 0)} USD</p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                            <p className="text-xs text-slate-500">Net Profit</p>
+                            <p className="text-xs text-slate-500">Faa'iidada Saafiga ah</p>
                             <p className="text-2xl font-bold text-slate-900">{Number(stats?.totalProfit || 0).toLocaleString()} SOS</p>
                             <p className="text-xs text-slate-500">${convertSosToUsd(stats?.totalProfit || 0)} USD</p>
                         </div>
@@ -241,9 +241,9 @@ const CashierDashboard = () => {
 
                 <div className="card lg:col-span-2">
                     <div className="flex items-center justify-between mb-3">
-                        <h3 className="chart-title">Top Debt Balances</h3>
+                        <h3 className="chart-title">Daymaha Ugu Waaweyn</h3>
                         <button onClick={() => navigate('/cashier/debts')} className="btn-secondary text-xs">
-                            View All
+                            Eeg Dhammaan
                         </button>
                     </div>
                     <div className="space-y-2">
@@ -259,7 +259,7 @@ const CashierDashboard = () => {
                                 </div>
                             </div>
                         ))}
-                        {topDebts.length === 0 && <p className="text-sm text-slate-500">No pending debts.</p>}
+                        {topDebts.length === 0 && <p className="text-sm text-slate-500">Dayn sugaysa ma jirto.</p>}
                     </div>
                 </div>
             </div>

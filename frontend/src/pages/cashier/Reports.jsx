@@ -4,8 +4,8 @@ function CashierReports() {
   return (
     <ReportsView
       endpoint="/api/cashier/reports"
-      title="Cashier Reports"
-      subtitle="Track your real sales, debt collections, and customer payments using the selected filter."
+      title="Warbixinnada Qasnajiga"
+      subtitle="La soco iibkaaga dhabta ah, ururinta daymaha, iyo lacag-bixinta macaamiisha adigoo adeegsanaya shaandhada la doortay."
     />
   );
 }

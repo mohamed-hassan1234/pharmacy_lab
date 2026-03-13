@@ -11,7 +11,6 @@ import {
     Package,
     ShoppingCart,
     Stethoscope,
-    TrendingUp,
     Truck,
     UserPlus,
     Users,
@@ -24,48 +23,52 @@ const Sidebar = ({ isOpen, onClose }) => {
     const navigate = useNavigate();
     const location = useLocation();
 
+    const roleLabel = {
+        Admin: 'Maamule',
+        Cashier: 'Qasnaji',
+        Doctor: 'Dhakhtar',
+        'Lab Technician': 'Farsamo-yaqaan Shaybaar'
+    };
+
     const pharmacySections = {
         Admin: [
             {
                 label: 'Main',
-                items: [{ name: 'Dashboard', icon: LayoutDashboard, path: '/admin' }]
+                items: [{ name: 'Guddi', icon: LayoutDashboard, path: '/admin' }]
             },
             {
-                label: 'Management',
+                label: 'Maamul',
                 items: [
-                    { name: 'Financials', icon: TrendingUp, path: '/admin/finance' },
-                    { name: 'Reports', icon: FileBarChart, path: '/admin/reports' },
-                    { name: 'Staff', icon: Users, path: '/admin/staff' },
-                    { name: 'Inventory', icon: Package, path: '/admin/inventory' }
+                    { name: 'Warbixino', icon: FileBarChart, path: '/admin/reports' }
                 ]
             }
         ],
         Cashier: [
             {
-                label: 'Main',
+                label: 'Ugu Muhiimsan',
                 items: [
-                    { name: 'Dashboard', icon: LayoutDashboard, path: '/cashier' },
-                    { name: 'Register Patient', icon: UserPlus, path: '/cashier/register' },
-                    { name: 'POS Sales', icon: ShoppingCart, path: '/cashier/sales' }
+                    { name: 'Guddi', icon: LayoutDashboard, path: '/cashier' },
+                    { name: 'Diiwaangeli Bukaan', icon: UserPlus, path: '/cashier/register' },
+                    { name: 'Iibka POS', icon: ShoppingCart, path: '/cashier/sales' }
                 ]
             },
             {
-                label: 'Operations',
+                label: 'Hawlgal',
                 items: [
-                    { name: 'Doctor Notes', icon: Stethoscope, path: '/cashier/consultations' },
-                    { name: 'Medicines', icon: Package, path: '/cashier/medicines' },
-                    { name: 'Customers', icon: Users, path: '/cashier/customers' },
-                    { name: 'Suppliers', icon: Truck, path: '/cashier/suppliers' },
-                    { name: 'Reports', icon: FileBarChart, path: '/cashier/reports' }
+                    { name: 'Qoraallada Dhakhtarka', icon: Stethoscope, path: '/cashier/consultations' },
+                    { name: 'Daawooyin', icon: Package, path: '/cashier/medicines' },
+                    { name: 'Macaamiil', icon: Users, path: '/cashier/customers' },
+                    { name: 'Alaab-qeybiyeyaasha', icon: Truck, path: '/cashier/suppliers' },
+                    { name: 'Warbixino', icon: FileBarChart, path: '/cashier/reports' }
                 ]
             }
         ],
         Doctor: [
             {
-                label: 'Main',
+                label: 'Ugu Muhiimsan',
                 items: [
-                    { name: 'Patients', icon: Users, path: '/doctor' },
-                    { name: 'Consultation', icon: Stethoscope, path: '/doctor/consult' }
+                    { name: 'Bukaanno', icon: Users, path: '/doctor' },
+                    { name: 'La-talin', icon: Stethoscope, path: '/doctor/consult' }
                 ]
             }
         ]
@@ -73,15 +76,15 @@ const Sidebar = ({ isOpen, onClose }) => {
 
     const labSections = [
         {
-            label: 'Laboratory',
+            label: 'Shaybaar',
             items: [
-                { name: 'Lab Dashboard', icon: LayoutDashboard, path: '/lab' },
-                { name: 'Process Payments', icon: CreditCard, path: '/cashier/lab-payments' },
-                { name: 'Doctor Notes', icon: Stethoscope, path: '/cashier/consultations' },
-                { name: 'Enter Results', icon: FlaskConical, path: '/lab/tests?status=Paid' },
-                { name: 'Awaiting Doctor', icon: Clock, path: '/lab/tests?status=Awaiting Doctor' },
-                { name: 'Reviewed Final', icon: CheckCircle, path: '/lab/tests?status=Completed' },
-                { name: 'Lab Reports', icon: FileBarChart, path: '/lab/tests' }
+                { name: 'Guddi Shaybaar', icon: LayoutDashboard, path: '/lab' },
+                { name: 'Habee Lacag-bixin', icon: CreditCard, path: '/cashier/lab-payments' },
+                { name: 'Qoraallada Dhakhtarka', icon: Stethoscope, path: '/cashier/consultations' },
+                { name: 'Geli Natiijo', icon: FlaskConical, path: '/lab/tests?status=Paid' },
+                { name: 'Dhakhtar Sugaya', icon: Clock, path: '/lab/tests?status=Awaiting Doctor' },
+                { name: 'La Dhammeeyey', icon: CheckCircle, path: '/lab/tests?status=Completed' },
+                { name: 'Warbixin Shaybaar', icon: FileBarChart, path: '/lab/tests' }
             ]
         }
     ];
@@ -131,10 +134,10 @@ const Sidebar = ({ isOpen, onClose }) => {
                     </div>
                     <div>
                         <p className="text-xs font-black uppercase tracking-[0.18em] text-red-100">DR. SAALIM</p>
-                        <p className="text-lg font-bold text-green-200">{viewMode === 'pharmacy' ? 'Polyclinic' : 'Laboratory Wing'}</p>
+                        <p className="text-lg font-bold text-green-200">{viewMode === 'pharmacy' ? 'Rugta Caafimaadka' : 'Qaybta Shaybaarka'}</p>
                     </div>
                 </div>
-                <button type="button" className="btn-secondary px-2.5 py-2 lg:hidden" onClick={onClose} aria-label="Close menu">
+                <button type="button" className="btn-secondary px-2.5 py-2 lg:hidden" onClick={onClose} aria-label="Xir menu-ga">
                     <X size={16} />
                 </button>
             </div>
@@ -164,7 +167,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
                 {(user?.role === 'Cashier' || user?.role === 'Admin') && (
                     <div className="app-sidebar-section">
-                        <p className="app-sidebar-label">Tools</p>
+                        <p className="app-sidebar-label">Qalab</p>
                         <button
                             onClick={handleDashboardSwitch}
                             className={`w-full rounded-xl border border-dashed px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide transition-colors ${viewMode === 'pharmacy'
@@ -174,10 +177,10 @@ const Sidebar = ({ isOpen, onClose }) => {
                         >
                             <div className="mb-1 flex items-center gap-2">
                                 <ArrowRightLeft size={14} />
-                                <span>Switch Dashboard</span>
+                                <span>Beddel Guddi</span>
                             </div>
                             <span className="text-[11px] normal-case tracking-normal">
-                                Go to {viewMode === 'pharmacy' ? 'Laboratory view' : 'Pharmacy view'}
+                                U gudub {viewMode === 'pharmacy' ? 'muuqaalka shaybaarka' : 'muuqaalka farmashiyaha'}
                             </span>
                         </button>
                     </div>
@@ -191,7 +194,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                     </div>
                     <div className="overflow-hidden">
                         <p className="truncate text-sm font-semibold text-white">{user?.name}</p>
-                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{user?.role}</p>
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{roleLabel[user?.role] || user?.role}</p>
                     </div>
                 </div>
                 <button
@@ -202,7 +205,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                     className="btn-secondary w-full justify-start border-0 bg-red-500/15 text-red-200 hover:bg-red-500/25"
                 >
                     <LogOut size={16} />
-                    <span>Logout</span>
+                    <span>Ka Bax</span>
                 </button>
             </div>
         </aside>

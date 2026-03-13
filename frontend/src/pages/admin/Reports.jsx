@@ -4,8 +4,8 @@ function AdminReports() {
   return (
     <ReportsView
       endpoint="/api/admin/reports"
-      title="System Reports"
-      subtitle="Track real sales, money collected, and customer payments across the whole clinic."
+      title="Warbixinnada Nidaamka"
+      subtitle="La soco iibka dhabta ah, lacagta la ururiyey, iyo lacag-bixinnada macaamiisha ee rugta oo dhan."
     />
   );
 }

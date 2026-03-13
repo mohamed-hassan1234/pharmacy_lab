@@ -29,7 +29,7 @@ const CustomerManagement = () => {
             await axios.post('http://localhost:5010/api/cashier/customers', formData, config);
             setFormData({ name: '', phone: '' });
             fetchCustomers();
-        } catch (err) { alert(err.response?.data?.message || 'Failed'); }
+        } catch (err) { alert(err.response?.data?.message || 'Way fashilantay.'); }
         finally { setLoading(false); }
     };
 
@@ -44,31 +44,31 @@ const CustomerManagement = () => {
                 <div className="card sticky top-8">
                     <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                         <Plus className="text-primary" />
-                        Register New Customer (Clinic/Pharmacy)
+                        Diiwaangeli Macmiil Cusub
                     </h2>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium mb-1">Full Name</label>
+                            <label className="block text-sm font-medium mb-1">Magaca Buuxa</label>
                             <div className="relative">
                                 <User className="absolute left-3 top-3 text-slate-400" size={18} />
                                 <input
-                                    type="text" className="input-field pl-10" placeholder="e.g. Ahmed Ali"
+                                    type="text" className="input-field pl-10" placeholder="tusaale Axmed Cali"
                                     value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required
                                 />
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">Phone Number (SOS/Local)</label>
+                            <label className="block text-sm font-medium mb-1">Lambarka Taleefanka</label>
                             <div className="relative">
                                 <Phone className="absolute left-3 top-3 text-slate-400" size={18} />
                                 <input
-                                    type="text" className="input-field pl-10" placeholder="e.g. 61xxxxxxx"
+                                    type="text" className="input-field pl-10" placeholder="tusaale 61xxxxxxx"
                                     value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })}
                                 />
                             </div>
                         </div>
                         <button type="submit" disabled={loading} className="btn-primary w-full py-3">
-                            {loading ? 'Registering...' : 'Add Customer'}
+                            {loading ? 'Waa la diiwaangelinayaa...' : 'Ku Dar Macmiil'}
                         </button>
                     </form>
                 </div>
@@ -79,14 +79,14 @@ const CustomerManagement = () => {
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold flex items-center gap-2">
                             <History className="text-primary" />
-                            Customer List
+                            Liiska Macaamiisha
                         </h2>
                         <div className="relative w-full max-w-64">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                             <input
                                 type="text"
                                 className="input-field pl-10 py-1"
-                                placeholder="Search customers..."
+                                placeholder="Raadi macaamiil..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                             />
@@ -97,17 +97,17 @@ const CustomerManagement = () => {
                         <table className="data-table striped-table">
                             <thead>
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Phone</th>
-                                    <th>Debt</th>
-                                    <th>Registered On</th>
+                                    <th>Magaca</th>
+                                    <th>Taleefan</th>
+                                    <th>Dayn</th>
+                                    <th>La Diiwaangeliyey</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredCustomers.map(c => (
                                     <tr key={c._id}>
                                         <td className="px-4 py-4 font-semibold text-slate-800 uppercase tracking-tighter">{c.name}</td>
-                                        <td className="px-4 py-4 font-mono text-slate-600">{c.phone || 'N/A'}</td>
+                                        <td className="px-4 py-4 font-mono text-slate-600">{c.phone || 'Ma jiro'}</td>
                                         <td className="px-4 py-4">
                                             {Number(c.outstandingDebt) > 0 ? (
                                                 <div>
@@ -115,7 +115,7 @@ const CustomerManagement = () => {
                                                     <p className="text-xs font-bold text-slate-400">${convertSosToUsd(c.outstandingDebt)} USD</p>
                                                 </div>
                                             ) : (
-                                                <span className="status-chip bg-emerald-100 text-emerald-700">No debt</span>
+                                                <span className="status-chip bg-emerald-100 text-emerald-700">Dayn ma jiro</span>
                                             )}
                                         </td>
                                         <td className="px-4 py-4 text-sm text-slate-500">{new Date(c.createdAt).toLocaleDateString()}</td>
@@ -123,7 +123,7 @@ const CustomerManagement = () => {
                                 ))}
                             </tbody>
                         </table>
-                        {filteredCustomers.length === 0 && <p className="text-center py-10 text-slate-400">No customers found.</p>}
+                        {filteredCustomers.length === 0 && <p className="text-center py-10 text-slate-400">Macmiil lama helin.</p>}
                     </div>
                 </div>
             </div>

@@ -37,7 +37,7 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem(VIEW_MODE_KEY, nextMode);
             return data;
         } catch (error) {
-            throw error.response?.data?.message || 'Login failed';
+            throw error.response?.data?.message || 'Gelitaanku wuu fashilmay';
         }
     };
 

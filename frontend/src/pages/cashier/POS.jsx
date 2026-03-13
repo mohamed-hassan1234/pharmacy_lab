@@ -16,7 +16,7 @@ const PharmacyPOS = () => {
     const [prescriptions, setPrescriptions] = useState([]);
     const [cart, setCart] = useState([]);
     const [search, setSearch] = useState('');
-    const [customerName, setCustomerName] = useState('Walk-in Customer');
+    const [customerName, setCustomerName] = useState('Macmiil Toos U Yimid');
     const [selectedCustomerId, setSelectedCustomerId] = useState('');
     const [paymentType, setPaymentType] = useState('CASH');
     const [paidAmount, setPaidAmount] = useState(0);
@@ -69,7 +69,7 @@ const PharmacyPOS = () => {
     const loadPrescriptionToCart = (prescription) => {
         setSelectedPrescriptionId(prescription._id);
         setSelectedCustomerId('');
-        setCustomerName(prescription.patientId?.name || 'Walk-in Customer');
+        setCustomerName(prescription.patientId?.name || 'Macmiil Toos U Yimid');
 
         (prescription.medicines || []).forEach((prescribed) => {
             const matched = medicines.find((medicine) =>
@@ -90,7 +90,7 @@ const PharmacyPOS = () => {
     const printInvoice = (sale, existingWindow = null) => {
         const printWindow = existingWindow || window.open('', '', 'width=900,height=1000');
         if (!printWindow) {
-            alert('Invoice window was blocked.');
+            alert('Daaqadda biilka waa la xanibay.');
             return;
         }
 
@@ -113,7 +113,7 @@ const PharmacyPOS = () => {
         printWindow.document.write(`
             <html>
                 <head>
-                    <title>Invoice ${escapeHtml(sale.invoiceNumber)}</title>
+                    <title>Biil ${escapeHtml(sale.invoiceNumber)}</title>
                     <style>
                         body { font-family: Arial, sans-serif; margin: 24px; color: #0f172a; }
                         table { width: 100%; border-collapse: collapse; margin-top: 16px; }
@@ -124,29 +124,29 @@ const PharmacyPOS = () => {
                     </style>
                 </head>
                 <body>
-                    <h1>Pharmacy Invoice</h1>
+                    <h1>Biilka Farmashiyaha</h1>
                     <div class="box">
-                        <div class="row"><strong>Invoice</strong><span>${escapeHtml(sale.invoiceNumber)}</span></div>
-                        <div class="row"><strong>Date</strong><span>${new Date(sale.createdAt || Date.now()).toLocaleString()}</span></div>
-                        <div class="row"><strong>Customer</strong><span>${escapeHtml(sale.customerName)}</span></div>
-                        <div class="row"><strong>Payment</strong><span>${escapeHtml(sale.paymentType)}</span></div>
+                        <div class="row"><strong>Biil</strong><span>${escapeHtml(sale.invoiceNumber)}</span></div>
+                        <div class="row"><strong>Taariikh</strong><span>${new Date(sale.createdAt || Date.now()).toLocaleString()}</span></div>
+                        <div class="row"><strong>Macmiil</strong><span>${escapeHtml(sale.customerName)}</span></div>
+                        <div class="row"><strong>Lacag-bixin</strong><span>${escapeHtml(sale.paymentType)}</span></div>
                     </div>
                     <table>
                         <thead>
                             <tr>
-                                <th>Medicine</th>
-                                <th>Type</th>
-                                <th>Quantity</th>
-                                <th>Unit Price</th>
-                                <th>Total</th>
+                                <th>Daawo</th>
+                                <th>Nooca</th>
+                                <th>Tirada</th>
+                                <th>Qiimaha Cutubka</th>
+                                <th>Wadar</th>
                             </tr>
                         </thead>
                         <tbody>${rows}</tbody>
                     </table>
                     <div class="box">
-                        <div class="row"><strong>Paid Now</strong><span>${Number(summary.paidAmount || 0).toLocaleString()} SOS</span></div>
-                        <div class="row"><strong>Remaining Debt</strong><span>${Number(summary.remainingBalance || 0).toLocaleString()} SOS</span></div>
-                        <div class="row"><strong>Grand Total</strong><span>${Number(sale.totalAmount || 0).toLocaleString()} SOS</span></div>
+                        <div class="row"><strong>Hadda La Bixiyey</strong><span>${Number(summary.paidAmount || 0).toLocaleString()} SOS</span></div>
+                        <div class="row"><strong>Daynta Harsan</strong><span>${Number(summary.remainingBalance || 0).toLocaleString()} SOS</span></div>
+                        <div class="row"><strong>Wadarta Guud</strong><span>${Number(sale.totalAmount || 0).toLocaleString()} SOS</span></div>
                     </div>
                 </body>
             </html>
@@ -160,13 +160,13 @@ const PharmacyPOS = () => {
         if (cart.length === 0) return;
         const paidNow = paymentType === 'CASH' ? total : Math.max(0, Number(paidAmount) || 0);
         if (paymentType === 'CREDIT' && paidNow > total) {
-            alert('Paid amount cannot be greater than total amount.');
+            alert('Lacagta la bixiyey kama badnaan karto wadarta guud.');
             return;
         }
 
         const printWindow = window.open('', '', 'width=900,height=1000');
         if (printWindow) {
-            printWindow.document.write('<div style="font-family: Arial, sans-serif; padding: 24px;">Preparing invoice...</div>');
+            printWindow.document.write('<div style="font-family: Arial, sans-serif; padding: 24px;">Biilka waa la diyaarinayaa...</div>');
         }
 
         setLoading(true);
@@ -183,14 +183,14 @@ const PharmacyPOS = () => {
             setSaleSuccess(data);
             setCart([]);
             setSelectedCustomerId('');
-            setCustomerName('Walk-in Customer');
+            setCustomerName('Macmiil Toos U Yimid');
             setPaidAmount(0);
             setSelectedPrescriptionId(null);
             loadAll();
             printInvoice(data, printWindow);
         } catch (error) {
             if (printWindow) printWindow.close();
-            alert(error.response?.data?.message || 'Sale failed');
+            alert(error.response?.data?.message || 'Iibku wuu fashilmay.');
         } finally {
             setLoading(false);
         }
@@ -199,8 +199,8 @@ const PharmacyPOS = () => {
     return (
         <div className="space-y-6">
             <div className="section-header">
-                <h1 className="section-title">Point of Sale</h1>
-                <p className="section-subtitle">Sell medicines, manage debt safely, and print the saved invoice correctly.</p>
+                <h1 className="section-title">Goobta Iibka</h1>
+                <p className="section-subtitle">Iibi daawooyinka, maamul daynta si ammaan ah, oo si sax ah u daabac biilka la keydiyey.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -208,10 +208,10 @@ const PharmacyPOS = () => {
                     <div className="flex gap-3">
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-primary" size={20} />
-                            <input className="input-field pl-10 h-12" placeholder="Search medicine..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                            <input className="input-field pl-10 h-12" placeholder="Raadi daawo..." value={search} onChange={(e) => setSearch(e.target.value)} />
                         </div>
                         <button type="button" onClick={() => setShowPrescriptions((prev) => !prev)} className="btn-secondary px-4 py-2 text-xs uppercase">
-                            <FileText size={16} /> Prescriptions
+                            <FileText size={16} /> Warqadaha Daawada
                         </button>
                     </div>
 
@@ -220,11 +220,11 @@ const PharmacyPOS = () => {
                             {(prescriptions || []).map((prescription) => (
                                 <div key={prescription._id} className="flex items-center justify-between gap-3 rounded-xl bg-white p-3 border border-orange-100">
                                     <div>
-                                        <p className="font-black text-slate-800">{prescription.patientId?.name || 'Unknown'}</p>
-                                        <p className="text-xs text-slate-500">{prescription.diagnosis || 'No diagnosis'}</p>
+                                        <p className="font-black text-slate-800">{prescription.patientId?.name || 'Lama yaqaan'}</p>
+                                        <p className="text-xs text-slate-500">{prescription.diagnosis || 'Ogaansho ma jiro'}</p>
                                     </div>
                                     <button type="button" onClick={() => loadPrescriptionToCart(prescription)} className="btn-primary px-3 py-2 text-xs">
-                                        Load
+                                        Soo Geli
                                     </button>
                                 </div>
                             ))}
@@ -236,14 +236,14 @@ const PharmacyPOS = () => {
                             <div key={medicine._id} className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                 <div>
                                     <p className="font-black text-slate-800">{medicine.name}</p>
-                                    <p className="text-xs text-slate-500">Stock: {medicine.boxesInStock} boxes / {medicine.totalUnitsInStock} units</p>
+                                    <p className="text-xs text-slate-500">Kayd: {medicine.boxesInStock} kartoon / {medicine.totalUnitsInStock} xabbo</p>
                                 </div>
                                 <div className="flex gap-2">
                                     <button type="button" onClick={() => addToCart(medicine, 'UNIT')} className="btn-secondary px-3 py-2 text-xs">
-                                        <Plus size={14} /> Unit
+                                        <Plus size={14} /> Xabbo
                                     </button>
                                     <button type="button" onClick={() => addToCart(medicine, 'BOX')} className="btn-primary px-3 py-2 text-xs">
-                                        <Plus size={14} /> Box
+                                        <Plus size={14} /> Kartoon
                                     </button>
                                 </div>
                             </div>
@@ -254,39 +254,39 @@ const PharmacyPOS = () => {
                 <div className="lg:col-span-2 card space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="text-xs font-black uppercase text-slate-500">Customer</label>
+                            <label className="text-xs font-black uppercase text-slate-500">Macmiil</label>
                             <select
                                 className="input-field mt-2"
                                 value={selectedCustomerId}
                                 onChange={(e) => {
                                     setSelectedCustomerId(e.target.value);
-                                    if (!e.target.value) setCustomerName('Walk-in Customer');
+                                    if (!e.target.value) setCustomerName('Macmiil Toos U Yimid');
                                 }}
                             >
-                                <option value="">Walk-in / New customer</option>
+                                <option value="">Toos u yimid / Macmiil cusub</option>
                                 {customers.map((customer) => (
                                     <option key={customer._id} value={customer._id}>{customer.name}</option>
                                 ))}
                             </select>
                             {!selectedCustomerId && (
-                                <input className="input-field mt-2" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Customer name" />
+                                <input className="input-field mt-2" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Magaca macmiilka" />
                             )}
                             {selectedCustomer && (
                                 <div className={`mt-2 rounded-xl border px-3 py-2 ${Number(selectedCustomer.outstandingDebt) > 0 ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
                                     {Number(selectedCustomer.outstandingDebt) > 0
-                                        ? `${Number(selectedCustomer.outstandingDebt).toLocaleString()} SOS debt`
-                                        : 'No debt'}
+                                        ? `${Number(selectedCustomer.outstandingDebt).toLocaleString()} SOS dayn`
+                                        : 'Dayn ma jiro'}
                                 </div>
                             )}
                         </div>
                         <div>
-                            <label className="text-xs font-black uppercase text-slate-500">Payment</label>
+                            <label className="text-xs font-black uppercase text-slate-500">Lacag-bixin</label>
                             <select className="input-field mt-2" value={paymentType} onChange={(e) => setPaymentType(e.target.value)}>
-                                <option value="CASH">Cash / Paid</option>
-                                <option value="CREDIT">Credit / Debt</option>
+                                <option value="CASH">Kaash / La bixiyey</option>
+                                <option value="CREDIT">Dayn</option>
                             </select>
                             {paymentType === 'CREDIT' && (
-                                <input className="input-field mt-2" type="number" value={paidAmount} onChange={(e) => setPaidAmount(Number(e.target.value))} placeholder="Paid now (SOS)" />
+                                <input className="input-field mt-2" type="number" value={paidAmount} onChange={(e) => setPaidAmount(Number(e.target.value))} placeholder="Hadda la bixiyey (SOS)" />
                             )}
                         </div>
                     </div>
@@ -295,7 +295,7 @@ const PharmacyPOS = () => {
                         {cart.length === 0 ? (
                             <div className="flex h-full min-h-[14rem] flex-col items-center justify-center text-slate-400">
                                 <ShoppingCart size={48} />
-                                <p className="mt-2 font-bold">No items added</p>
+                                <p className="mt-2 font-bold">Wax alaab ah laguma darin</p>
                             </div>
                         ) : cart.map((item, index) => (
                             <div key={item.cartId} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
@@ -315,17 +315,17 @@ const PharmacyPOS = () => {
 
                     <div className="flex items-end justify-between">
                         <div>
-                            <p className="text-xs font-black uppercase text-slate-500">Total USD</p>
+                            <p className="text-xs font-black uppercase text-slate-500">Wadarta USD</p>
                             <p className="text-lg font-bold text-slate-600">${convertSosToUsd(total)}</p>
                         </div>
                         <div className="text-right">
-                            <p className="text-xs font-black uppercase text-slate-500">Total SOS</p>
+                            <p className="text-xs font-black uppercase text-slate-500">Wadarta SOS</p>
                             <p className="text-3xl font-black text-primary">{total.toLocaleString()} SOS</p>
                         </div>
                     </div>
 
                     <button type="button" onClick={processSale} disabled={cart.length === 0 || loading} className={`w-full ${paymentType === 'CASH' ? 'btn-primary' : 'btn-secondary'} py-4 text-sm uppercase`}>
-                        {loading ? 'Processing...' : (paymentType === 'CASH' ? <><Banknote size={16} /> Save And Print Invoice</> : <><CreditCard size={16} /> Save Debt And Print Invoice</>)}
+                        {loading ? 'Waa la maamulayaa...' : (paymentType === 'CASH' ? <><Banknote size={16} /> Keydi oo Daabac Biilka</> : <><CreditCard size={16} /> Keydi Daynta oo Daabac Biilka</>)}
                     </button>
 
                     {saleSuccess && (
@@ -336,13 +336,13 @@ const PharmacyPOS = () => {
                                     <p className="text-sm text-slate-300">{saleSuccess.customerName}</p>
                                 </div>
                                 <button type="button" onClick={() => printInvoice(saleSuccess)} className="btn-secondary px-3 py-2 text-xs">
-                                    <Printer size={14} /> Print Again
+                                    <Printer size={14} /> Mar Kale Daabac
                                 </button>
                             </div>
                             <div className="mt-3 space-y-1 text-sm text-slate-300">
-                                <p>Total: {saleSuccess.totalAmount.toLocaleString()} SOS</p>
-                                <p>Paid: {Number(saleSummary?.paidAmount || 0).toLocaleString()} SOS</p>
-                                <p>{Number(saleSummary?.remainingBalance || 0) > 0 ? `Debt: ${Number(saleSummary.remainingBalance).toLocaleString()} SOS` : 'No debt'}</p>
+                                <p>Wadar: {saleSuccess.totalAmount.toLocaleString()} SOS</p>
+                                <p>La bixiyey: {Number(saleSummary?.paidAmount || 0).toLocaleString()} SOS</p>
+                                <p>{Number(saleSummary?.remainingBalance || 0) > 0 ? `Dayn: ${Number(saleSummary.remainingBalance).toLocaleString()} SOS` : 'Dayn ma jiro'}</p>
                             </div>
                         </div>
                     )}

@@ -19,6 +19,15 @@ const LabTests = () => {
         urinalysis: { color: '', protein: '', sugar: '', microscopy: '' },
         stoolExamination: { color: '', parasites: '', microscopy: '' }
     });
+    const [resultText, setResultText] = useState('');
+
+    const emptyResults = {
+        hematology: { hb: '', wbc: '', rbc: '', mcv: '', mch: '', platelets: '' },
+        biochemistry: { bloodSugar: '', urea: '', creatinine: '', alt: '', ast: '', others: '' },
+        serology: { hiv: '', hPylori: '', typhoid: '', hepatitis: '' },
+        urinalysis: { color: '', protein: '', sugar: '', microscopy: '' },
+        stoolExamination: { color: '', parasites: '', microscopy: '' }
+    };
 
     useEffect(() => {
         const status = searchParams.get('status');
@@ -50,25 +59,24 @@ const LabTests = () => {
 
     const handleEnterResults = (request) => {
         setSelectedRequest(request);
-        setResults(request.results || {
-            hematology: { hb: '', wbc: '', rbc: '', mcv: '', mch: '', platelets: '' },
-            biochemistry: { bloodSugar: '', urea: '', creatinine: '', alt: '', ast: '', others: '' },
-            serology: { hiv: '', hPylori: '', typhoid: '', hepatitis: '' },
-            urinalysis: { color: '', protein: '', sugar: '', microscopy: '' },
-            stoolExamination: { color: '', parasites: '', microscopy: '' }
-        });
+        setResults(request.results || emptyResults);
+        setResultText(request.resultText || '');
         setShowResults(true);
     };
 
     const handleSaveResults = async (silent = false) => {
+        if (!resultText.trim()) {
+            if (!silent) alert('Fadlan geli natiijada shaybaarka sanduuqa qoraalka.');
+            throw new Error('Qoraalka natiijada waa qasab');
+        }
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`http://localhost:5010/api/lab/requests/${selectedRequest._id}/results`, { results }, config);
-            if (!silent) alert('Results saved successfully!');
+            await axios.patch(`http://localhost:5010/api/lab/requests/${selectedRequest._id}/results`, { results, resultText: resultText.trim() }, config);
+            if (!silent) alert('Natiijooyinka si guul leh ayaa loo keydiyey.');
             setShowResults(false);
             fetchRequests();
         } catch (err) {
-            if (!silent) alert(err.response?.data?.message || 'Error saving results');
+            if (!silent) alert(err.response?.data?.message || 'Qalad ayaa ka dhacay keydinta natiijooyinka.');
             throw err;
         }
     };
@@ -78,16 +86,16 @@ const LabTests = () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
             await axios.patch(`http://localhost:5010/api/lab/requests/${id}/complete`, {}, config);
-            alert('Patient returned to Doctor successfully!');
+            alert('Bukaanka si guul leh ayaa loogu celiyey dhakhtarka.');
             fetchRequests();
-        } catch (err) { alert(err.response?.data?.message || 'Error completing request'); }
+        } catch (err) { alert(err.response?.data?.message || 'Qalad ayaa ka dhacay dhammaystirka codsiga.'); }
     };
 
 
     const handlePrintTicket = (request) => {
         const printWindow = window.open('', '', 'width=400,height=600');
         printWindow.document.write(`
-            <html><head><title>Lab Ticket - ${request.ticketNumber}</title>
+                <html><head><title>Tigidhka Shaybaarka - ${request.ticketNumber}</title>
             <style>
                 body { font-family: Arial; padding: 20px; }
                 h2 { text-align: center; margin-bottom: 20px; }
@@ -95,18 +103,19 @@ const LabTests = () => {
                 .label { font-weight: bold; }
                 .ticket-number { font-size: 24px; font-weight: bold; text-align: center; margin: 20px 0; }
             </style></head><body>
-            <h2>LABORATORY TICKET</h2>
+            <h2>TIGIDHKA SHAYBAARKA</h2>
             <div class="ticket-number">${request.ticketNumber}</div>
-            <div class="info"><span class="label">Patient:</span> ${request.patientName}</div>
-            <div class="info"><span class="label">Age/Sex:</span> ${request.age} years / ${request.sex}</div>
-            <div class="info"><span class="label">Date:</span> ${new Date(request.createdAt).toLocaleDateString()}</div>
-            <div class="info"><span class="label">Tests:</span></div>
+            <div class="info"><span class="label">Bukaan:</span> ${request.patientName}</div>
+            <div class="info"><span class="label">Da'/Jinsi:</span> ${request.age} sano / ${request.sex}</div>
+            <div class="info"><span class="label">Taariikh:</span> ${new Date(request.createdAt).toLocaleDateString()}</div>
+            <div class="info"><span class="label">Baaritaanno:</span></div>
             <ul>
-                ${request.requestedTests.hematology ? '<li>Hematology</li>' : ''}
-                ${request.requestedTests.biochemistry ? '<li>Biochemistry</li>' : ''}
-                ${request.requestedTests.serology ? '<li>Serology</li>' : ''}
-                ${request.requestedTests.urinalysis ? '<li>Urinalysis</li>' : ''}
-                ${request.requestedTests.stoolExamination ? '<li>Stool Examination</li>' : ''}
+                ${request.requestedTestInput ? `<li>${request.requestedTestInput}</li>` : ''}
+                ${!request.requestedTestInput && request.requestedTests.hematology ? '<li>Dhiig</li>' : ''}
+                ${!request.requestedTestInput && request.requestedTests.biochemistry ? '<li>Kiimiko</li>' : ''}
+                ${!request.requestedTestInput && request.requestedTests.serology ? '<li>Serology</li>' : ''}
+                ${!request.requestedTestInput && request.requestedTests.urinalysis ? '<li>Kaadi</li>' : ''}
+                ${!request.requestedTestInput && request.requestedTests.stoolExamination ? '<li>Baaritaanka Saxarada</li>' : ''}
             </ul>
             </body></html>
         `);
@@ -121,7 +130,7 @@ const LabTests = () => {
 
             const printWindow = window.open('', '', 'width=800,height=1000');
             printWindow.document.write(`
-                <html><head><title>Lab Results - ${request.ticketNumber}</title>
+                <html><head><title>Natiijooyinka Shaybaarka - ${request.ticketNumber}</title>
                 <style>
                     body { font-family: Arial; padding: 40px; }
                     h1 { text-align: center; color: #1e293b; }
@@ -136,16 +145,22 @@ const LabTests = () => {
                     .sig-line { border-top: 1px solid #000; width: 200px; text-align: center; padding-top: 5px; }
                 </style></head><body>
                 <div class="header">
-                    <h1>LABORATORY RESULTS</h1>
-                    <p><strong>Ticket Number:</strong> ${request.ticketNumber}</p>
+                    <h1>NATIIJOYINKA SHAYBAARKA</h1>
+                    <p><strong>Lambarka Tigidhka:</strong> ${request.ticketNumber}</p>
                 </div>
                 <div class="patient-info">
-                    <p><strong>Patient Name:</strong> ${request.patientName}</p>
-                    <p><strong>Age:</strong> ${request.age} years | <strong>Sex:</strong> ${request.sex}</p>
-                    <p><strong>Date:</strong> ${new Date(request.createdAt).toLocaleDateString()}</p>
-                    <p><strong>Doctor:</strong> ${request.doctorName}</p>
+                    <p><strong>Magaca Bukaanka:</strong> ${request.patientName}</p>
+                    <p><strong>Da'da:</strong> ${request.age} sano | <strong>Jinsiga:</strong> ${request.sex}</p>
+                    <p><strong>Taariikh:</strong> ${new Date(request.createdAt).toLocaleDateString()}</p>
+                    <p><strong>Dhakhtar:</strong> ${request.doctorName}</p>
+                    ${request.requestedTestInput ? `<p><strong>Baaritaanka La Codsaday:</strong> ${request.requestedTestInput}</p>` : ''}
                 </div>
-                ${request.requestedTests.hematology ? `
+                ${request.resultText ? `
+                <div class="section">
+                    <div class="section-title">NATIIJO</div>
+                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;white-space:pre-wrap;">${request.resultText}</div>
+                </div>` : ''}
+                ${!request.resultText && request.requestedTests.hematology ? `
                 <div class="section">
                     <div class="section-title">HEMATOLOGY</div>
                     <table>
@@ -157,7 +172,7 @@ const LabTests = () => {
                         <tr><td class="label">Platelets:</td><td>${request.results.hematology.platelets || 'N/A'}</td></tr>
                     </table>
                 </div>` : ''}
-                ${request.requestedTests.biochemistry ? `
+                ${!request.resultText && request.requestedTests.biochemistry ? `
                 <div class="section">
                     <div class="section-title">BIOCHEMISTRY</div>
                     <table>
@@ -169,7 +184,7 @@ const LabTests = () => {
                         <tr><td class="label">Others:</td><td>${request.results.biochemistry.others || 'N/A'}</td></tr>
                     </table>
                 </div>` : ''}
-                ${request.requestedTests.serology ? `
+                ${!request.resultText && request.requestedTests.serology ? `
                 <div class="section">
                     <div class="section-title">SEROLOGY</div>
                     <table>
@@ -179,7 +194,7 @@ const LabTests = () => {
                         <tr><td class="label">Hepatitis:</td><td>${request.results.serology.hepatitis || 'N/A'}</td></tr>
                     </table>
                 </div>` : ''}
-                ${request.requestedTests.urinalysis ? `
+                ${!request.resultText && request.requestedTests.urinalysis ? `
                 <div class="section">
                     <div class="section-title">URINALYSIS</div>
                     <table>
@@ -189,7 +204,7 @@ const LabTests = () => {
                         <tr><td class="label">Microscopy:</td><td>${request.results.urinalysis.microscopy || 'N/A'}</td></tr>
                     </table>
                 </div>` : ''}
-                ${request.requestedTests.stoolExamination ? `
+                ${!request.resultText && request.requestedTests.stoolExamination ? `
                 <div class="section">
                     <div class="section-title">STOOL EXAMINATION</div>
                     <table>
@@ -199,8 +214,8 @@ const LabTests = () => {
                     </table>
                 </div>` : ''}
                 <div class="signature">
-                    <div class="sig-line">Processed By</div>
-                    <div class="sig-line">Doctor Signature</div>
+                    <div class="sig-line">Waxaa Maamulay</div>
+                    <div class="sig-line">Saxiixa Dhakhtarka</div>
                 </div>
 
                 </body></html>
@@ -208,7 +223,7 @@ const LabTests = () => {
             printWindow.document.close();
             printWindow.print();
             fetchRequests();
-        } catch (err) { alert(err.response?.data?.message || 'Error printing results'); }
+        } catch (err) { alert(err.response?.data?.message || 'Qalad ayaa ka dhacay daabacaadda natiijooyinka.'); }
     };
 
     const filtered = requests.filter(r =>
@@ -220,9 +235,9 @@ const LabTests = () => {
         <div className="page-section animate-in fade-in duration-700">
             <div className="section-header">
                 <h1 className="section-title flex items-center gap-3">
-                    <FlaskConical size={30} className="text-primary" /> Consultation and Lab Requests
+                    <FlaskConical size={30} className="text-primary" /> La-talin iyo Codsiyada Shaybaarka
                 </h1>
-                <p className="section-subtitle">Process patient results and send finalized reports to the doctor.</p>
+                <p className="section-subtitle">Maamul natiijooyinka bukaanka oo u dir warbixinnada la dhammeeyey dhakhtarka.</p>
             </div>
 
 
@@ -233,7 +248,7 @@ const LabTests = () => {
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                         <input
                             type="text"
-                            placeholder="Search by ticket or patient name..."
+                            placeholder="Ku raadi tigidh ama magaca bukaanka..."
                             className="w-full pl-12"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
@@ -249,11 +264,11 @@ const LabTests = () => {
                             value={statusFilter}
                             onChange={e => setStatusFilter(e.target.value)}
                         >
-                            <option value="All">All Requests</option>
-                            <option value="Paid">Paid (Ready for Results)</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Awaiting Doctor">Awaiting Doctor Review</option>
-                            <option value="Completed">Reviewed / Finalized</option>
+                            <option value="All">Dhammaan Codsiyada</option>
+                            <option value="Paid">La Bixiyey (Natiijo Diyaar U Ah)</option>
+                            <option value="In Progress">Socda</option>
+                            <option value="Awaiting Doctor">Dib-u-eegis Dhakhtar Sugaya</option>
+                            <option value="Completed">La Eegay / La Dhammeeyey</option>
 
 
                         </select>
@@ -265,18 +280,18 @@ const LabTests = () => {
             <div className="card p-0 overflow-hidden">
                 <div className="border-b border-slate-200 bg-slate-50 p-6">
                     <h3 className="text-xl font-black flex items-center gap-3">
-                        <FileText /> Lab Requests ({filtered.length})
+                        <FileText /> Codsiyada Shaybaarka ({filtered.length})
                     </h3>
                 </div>
                 <div className="table-shell rounded-none border-0">
                     <table className="data-table striped-table">
                         <thead>
                             <tr>
-                                <th>Ticket</th>
-                                <th>Patient</th>
-                                <th>Tests</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th>Tigidh</th>
+                                <th>Bukaan</th>
+                                <th>Baaritaanno</th>
+                                <th>Xaalad</th>
+                                <th>Falal</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -315,7 +330,7 @@ const LabTests = () => {
                                             <button
                                                 onClick={() => handlePrintTicket(req)}
                                                 className="p-2 rounded-xl bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"
-                                                title="Print Ticket"
+                                                title="Daabac Tigidhka"
                                             >
                                                 <Printer size={18} />
                                             </button>
@@ -323,7 +338,7 @@ const LabTests = () => {
                                                 <button
                                                     onClick={() => handleEnterResults(req)}
                                                     className="p-2 rounded-xl bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors"
-                                                    title="Enter Results"
+                                                    title="Geli Natiijooyinka"
                                                 >
                                                     <Edit size={18} />
                                                 </button>
@@ -332,10 +347,10 @@ const LabTests = () => {
                                                 <button
                                                     onClick={() => handleComplete(req._id)}
                                                     className="p-2 rounded-xl bg-emerald-100 text-emerald-600 hover:bg-emerald-200 transition-colors flex items-center gap-2 px-3"
-                                                    title="Send Result to Doctor"
+                                                    title="U Dir Natiijada Dhakhtarka"
                                                 >
                                                     <CheckCircle size={18} />
-                                                    <span className="text-[10px] font-black uppercase">Send to Doctor</span>
+                                                    <span className="text-[10px] font-black uppercase">U Dir Dhakhtarka</span>
                                                 </button>
                                             )}
 
@@ -344,7 +359,7 @@ const LabTests = () => {
                                                 <button
                                                     onClick={() => handlePrintResults(req)}
                                                     className="p-2 rounded-xl bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"
-                                                    title="Print Results"
+                                                    title="Daabac Natiijooyinka"
                                                 >
                                                     <FileText size={18} />
                                                 </button>
@@ -365,7 +380,7 @@ const LabTests = () => {
                     <div className="bg-white w-full max-w-4xl rounded-[3rem] p-10 shadow-2xl my-8">
                         <div className="flex justify-between items-center mb-6">
                             <div>
-                                <h3 className="text-3xl font-black text-slate-800 uppercase italic">Enter Lab Results</h3>
+                                <h3 className="text-3xl font-black text-slate-800 uppercase italic">Geli Natiijooyinka Shaybaarka</h3>
                                 <p className="text-slate-600 font-bold">{selectedRequest.patientName} • {selectedRequest.ticketNumber}</p>
                             </div>
                             <button onClick={() => setShowResults(false)} className="p-2 hover:bg-slate-100 rounded-xl">
@@ -374,154 +389,24 @@ const LabTests = () => {
                         </div>
 
                         <div className="space-y-6 max-h-[600px] overflow-y-auto pr-4">
-                            {/* Hematology */}
-                            {selectedRequest.requestedTests.hematology && (
-                                <div className="bg-blue-50 p-6 rounded-2xl border-2 border-blue-100">
-                                    <h4 className="text-lg font-black text-blue-900 mb-4 uppercase">Hematology</h4>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">HB</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.hematology.hb} onChange={e => setResults({ ...results, hematology: { ...results.hematology, hb: e.target.value } })} />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">WBC</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.hematology.wbc} onChange={e => setResults({ ...results, hematology: { ...results.hematology, wbc: e.target.value } })} />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">RBC</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.hematology.rbc} onChange={e => setResults({ ...results, hematology: { ...results.hematology, rbc: e.target.value } })} />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">MCV</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.hematology.mcv} onChange={e => setResults({ ...results, hematology: { ...results.hematology, mcv: e.target.value } })} />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">MCH</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.hematology.mch} onChange={e => setResults({ ...results, hematology: { ...results.hematology, mch: e.target.value } })} />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">Platelets</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.hematology.platelets} onChange={e => setResults({ ...results, hematology: { ...results.hematology, platelets: e.target.value } })} />
-                                        </div>
-                                    </div>
+                            <div className="bg-emerald-50 p-6 rounded-2xl border-2 border-emerald-100">
+                                <h4 className="text-lg font-black text-emerald-900 mb-4 uppercase">Geli Natiijada Hal Goob</h4>
+                                <div className="mb-4 rounded-2xl bg-white p-4 border border-emerald-100">
+                                    <p className="text-xs font-black text-slate-400 uppercase mb-2">Baaritaanka La Codsaday</p>
+                                    <p className="font-bold text-slate-800 whitespace-pre-wrap">
+                                        {selectedRequest.requestedTestInput || 'Baaritaan qoran lama bixin'}
+                                    </p>
                                 </div>
-                            )}
-
-                            {/* Biochemistry */}
-                            {selectedRequest.requestedTests.biochemistry && (
-                                <div className="bg-emerald-50 p-6 rounded-2xl border-2 border-emerald-100">
-                                    <h4 className="text-lg font-black text-emerald-900 mb-4 uppercase">Biochemistry</h4>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">Blood Sugar</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.biochemistry.bloodSugar} onChange={e => setResults({ ...results, biochemistry: { ...results.biochemistry, bloodSugar: e.target.value } })} />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">Urea</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.biochemistry.urea} onChange={e => setResults({ ...results, biochemistry: { ...results.biochemistry, urea: e.target.value } })} />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">Creatinine</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.biochemistry.creatinine} onChange={e => setResults({ ...results, biochemistry: { ...results.biochemistry, creatinine: e.target.value } })} />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">ALT</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.biochemistry.alt} onChange={e => setResults({ ...results, biochemistry: { ...results.biochemistry, alt: e.target.value } })} />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">AST</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.biochemistry.ast} onChange={e => setResults({ ...results, biochemistry: { ...results.biochemistry, ast: e.target.value } })} />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">Others</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.biochemistry.others} onChange={e => setResults({ ...results, biochemistry: { ...results.biochemistry, others: e.target.value } })} />
-                                        </div>
-                                    </div>
+                                <div>
+                                    <label className="text-xs font-black text-slate-400 uppercase">Natiijada Shaybaarka</label>
+                                    <textarea
+                                        className="w-full min-h-[220px] bg-white border-none rounded-2xl p-4 font-bold text-slate-800"
+                                        placeholder="Halkan ku qor natiijada shaybaarka oo dhan hal meel."
+                                        value={resultText}
+                                        onChange={(e) => setResultText(e.target.value)}
+                                    />
                                 </div>
-                            )}
-
-                            {/* Serology */}
-                            {selectedRequest.requestedTests.serology && (
-                                <div className="bg-purple-50 p-6 rounded-2xl border-2 border-purple-100">
-                                    <h4 className="text-lg font-black text-purple-900 mb-4 uppercase">Serology</h4>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">HIV</label>
-                                            <select className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.serology.hiv} onChange={e => setResults({ ...results, serology: { ...results.serology, hiv: e.target.value } })}>
-                                                <option value="">Not Tested</option>
-                                                <option value="Positive">Positive</option>
-                                                <option value="Negative">Negative</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">H. Pylori</label>
-                                            <select className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.serology.hPylori} onChange={e => setResults({ ...results, serology: { ...results.serology, hPylori: e.target.value } })}>
-                                                <option value="">Not Tested</option>
-                                                <option value="Positive">Positive</option>
-                                                <option value="Negative">Negative</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">Typhoid</label>
-                                            <select className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.serology.typhoid} onChange={e => setResults({ ...results, serology: { ...results.serology, typhoid: e.target.value } })}>
-                                                <option value="">Not Tested</option>
-                                                <option value="Positive">Positive</option>
-                                                <option value="Negative">Negative</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">Hepatitis</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.serology.hepatitis} onChange={e => setResults({ ...results, serology: { ...results.serology, hepatitis: e.target.value } })} />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Urinalysis */}
-                            {selectedRequest.requestedTests.urinalysis && (
-                                <div className="bg-orange-50 p-6 rounded-2xl border-2 border-orange-100">
-                                    <h4 className="text-lg font-black text-orange-900 mb-4 uppercase">Urinalysis</h4>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">Color</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.urinalysis.color} onChange={e => setResults({ ...results, urinalysis: { ...results.urinalysis, color: e.target.value } })} />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">Protein</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.urinalysis.protein} onChange={e => setResults({ ...results, urinalysis: { ...results.urinalysis, protein: e.target.value } })} />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">Sugar</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.urinalysis.sugar} onChange={e => setResults({ ...results, urinalysis: { ...results.urinalysis, sugar: e.target.value } })} />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">Microscopy</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.urinalysis.microscopy} onChange={e => setResults({ ...results, urinalysis: { ...results.urinalysis, microscopy: e.target.value } })} />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Stool Examination */}
-                            {selectedRequest.requestedTests.stoolExamination && (
-                                <div className="bg-red-50 p-6 rounded-2xl border-2 border-red-100">
-                                    <h4 className="text-lg font-black text-red-900 mb-4 uppercase">Stool Examination</h4>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">Color</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.stoolExamination.color} onChange={e => setResults({ ...results, stoolExamination: { ...results.stoolExamination, color: e.target.value } })} />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-black text-slate-400 uppercase">Parasites</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.stoolExamination.parasites} onChange={e => setResults({ ...results, stoolExamination: { ...results.stoolExamination, parasites: e.target.value } })} />
-                                        </div>
-                                        <div className="col-span-2">
-                                            <label className="text-xs font-black text-slate-400 uppercase">Microscopy</label>
-                                            <input type="text" className="w-full bg-white border-none rounded-xl p-3 font-bold" value={results.stoolExamination.microscopy} onChange={e => setResults({ ...results, stoolExamination: { ...results.stoolExamination, microscopy: e.target.value } })} />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+                            </div>
                         </div>
 
                         <div className="flex gap-4 mt-6">
@@ -529,25 +414,25 @@ const LabTests = () => {
                                 onClick={() => setShowResults(false)}
                                 className="flex-1 bg-slate-100 text-slate-600 font-black py-4 rounded-2xl uppercase"
                             >
-                                Cancel
+                                Jooji
                             </button>
                             <button
                                 onClick={handleSaveResults}
                                 className="flex-1 bg-slate-200 text-slate-700 font-black py-4 rounded-2xl uppercase"
                             >
-                                Save Only
+                                Keydi Keliya
                             </button>
                             <button
                                 onClick={async () => {
                                     try {
                                         await handleSaveResults(true);
                                         await handleComplete(selectedRequest._id);
-                                        alert('Results sent to Doctor successfully!');
+                                        alert('Natiijooyinka si guul leh ayaa loogu diray dhakhtarka.');
                                     } catch (err) { /* handled in functions */ }
                                 }}
                                 className="flex-[2] bg-emerald-600 text-white font-black py-4 rounded-2xl uppercase shadow-2xl shadow-emerald-600/30 flex items-center justify-center gap-3"
                             >
-                                <CheckCircle size={24} /> Save & Send to Doctor
+                                <CheckCircle size={24} /> Keydi oo U Dir Dhakhtarka
                             </button>
 
                         </div>

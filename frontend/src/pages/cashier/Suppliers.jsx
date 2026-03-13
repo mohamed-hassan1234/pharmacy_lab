@@ -27,7 +27,7 @@ const SupplierManagement = () => {
             await axios.post('http://localhost:5010/api/inventory/suppliers', formData, config);
             setFormData({ name: '', source: '', note: '' });
             fetchSuppliers();
-        } catch (err) { alert(err.response?.data?.message || 'Failed'); }
+        } catch (err) { alert(err.response?.data?.message || 'Way fashilantay.'); }
         finally { setLoading(false); }
     };
 
@@ -37,41 +37,41 @@ const SupplierManagement = () => {
                 <div className="card sticky top-8">
                     <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                         <Plus className="text-primary" />
-                        Register New Supplier
+                        Diiwaangeli Alaab-qeybiye Cusub
                     </h2>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium mb-1">Supplier Name</label>
+                            <label className="block text-sm font-medium mb-1">Magaca Alaab-qeybiyaha</label>
                             <div className="relative">
                                 <Truck className="absolute left-3 top-3 text-slate-400" size={18} />
                                 <input
-                                    type="text" className="input-field pl-10" placeholder="e.g. Somali Pharma"
+                                    type="text" className="input-field pl-10" placeholder="tusaale Somali Pharma"
                                     value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required
                                 />
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">Source / Place</label>
+                            <label className="block text-sm font-medium mb-1">Goobta / Isha</label>
                             <div className="relative">
                                 <MapPin className="absolute left-3 top-3 text-slate-400" size={18} />
                                 <input
-                                    type="text" className="input-field pl-10" placeholder="e.g. Bakara Market"
+                                    type="text" className="input-field pl-10" placeholder="tusaale Suuqa Bakaaraha"
                                     value={formData.source} onChange={e => setFormData({ ...formData, source: e.target.value })} required
                                 />
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">Note (Optional)</label>
+                            <label className="block text-sm font-medium mb-1">Qoraal (Ikhtiyaari)</label>
                             <div className="relative">
                                 <StickyNote className="absolute left-3 top-3 text-slate-400" size={18} />
                                 <textarea
-                                    className="input-field pl-10 h-24 pt-2" placeholder="Any additional info..."
+                                    className="input-field pl-10 h-24 pt-2" placeholder="Macluumaad dheeraad ah..."
                                     value={formData.note} onChange={e => setFormData({ ...formData, note: e.target.value })}
                                 />
                             </div>
                         </div>
                         <button type="submit" disabled={loading} className="btn-primary w-full py-3">
-                            {loading ? 'Saving...' : 'Register Supplier'}
+                            {loading ? 'Waa la keydinayaa...' : 'Diiwaangeli Alaab-qeybiye'}
                         </button>
                     </form>
                 </div>
@@ -81,15 +81,15 @@ const SupplierManagement = () => {
                 <div className="card">
                     <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                         <History className="text-primary" />
-                        Registered Suppliers
+                        Alaab-qeybiyeyaasha Diiwaangashan
                     </h2>
                     <div className="table-shell">
                         <table className="data-table striped-table">
                             <thead>
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Source</th>
-                                    <th>Added Date</th>
+                                    <th>Magaca</th>
+                                    <th>Goobta</th>
+                                    <th>Taariikhda Lagu Daray</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -104,7 +104,7 @@ const SupplierManagement = () => {
                                 ))}
                             </tbody>
                         </table>
-                        {suppliers.length === 0 && <p className="text-center py-10 text-slate-400">No suppliers registered yet.</p>}
+                        {suppliers.length === 0 && <p className="text-center py-10 text-slate-400">Weli alaab-qeybiye lama diiwaangelin.</p>}
                     </div>
                 </div>
             </div>

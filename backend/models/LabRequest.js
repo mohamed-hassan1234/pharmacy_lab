@@ -17,9 +17,10 @@ const labRequestSchema = new mongoose.Schema({
         urinalysis: { type: Boolean, default: false },
         stoolExamination: { type: Boolean, default: false }
     },
+    requestedTestInput: { type: String },
     status: {
         type: String,
-        enum: ['Pending', 'Awaiting Payment', 'Paid', 'In Progress', 'Results Entered', 'Awaiting Doctor', 'Reviewed', 'Completed'],
+        enum: ['Pending', 'Awaiting Payment', 'Paid', 'In Progress', 'Results Entered', 'Awaiting Doctor', 'Sent to Cashier', 'Cashier Responded', 'Reviewed', 'Completed'],
         default: 'Pending'
     },
     isPaid: { type: Boolean, default: false },
@@ -65,6 +66,7 @@ const labRequestSchema = new mongoose.Schema({
             microscopy: { type: String }
         }
     },
+    resultText: { type: String },
     resultEnteredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     resultEnteredAt: { type: Date },
     doctorConclusion: { type: String },
@@ -75,6 +77,11 @@ const labRequestSchema = new mongoose.Schema({
         dosage: { type: String },
         duration: { type: String }
     }],
+    sentToCashierAt: { type: Date },
+    cashierResponse: { type: String },
+    cashierRespondedAt: { type: Date },
+    cashierRespondedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    finalDecisionAt: { type: Date },
     prescriptionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Prescription' },
     dispensedSaleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sale' },
     dispensedAt: { type: Date },

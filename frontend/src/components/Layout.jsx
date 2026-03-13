@@ -13,9 +13,9 @@ const Layout = () => {
     const formattedDate = useMemo(
         () =>
             new Date().toLocaleDateString('en-US', {
-                weekday: 'short',
+                weekday: 'long',
                 year: 'numeric',
-                month: 'short',
+                month: 'long',
                 day: 'numeric'
             }),
         []
@@ -43,7 +43,7 @@ const Layout = () => {
 
     return (
         <div className="app-shell">
-            {sidebarOpen && <button className="app-overlay" onClick={() => setSidebarOpen(false)} aria-label="Close sidebar" />}
+            {sidebarOpen && <button className="app-overlay" onClick={() => setSidebarOpen(false)} aria-label="Xir dhinaca menu-ga" />}
 
             <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
@@ -54,7 +54,7 @@ const Layout = () => {
                             type="button"
                             className="btn-secondary px-3 py-2 lg:hidden"
                             onClick={() => setSidebarOpen(true)}
-                            aria-label="Open sidebar"
+                            aria-label="Fur dhinaca menu-ga"
                         >
                             <Menu size={18} />
                         </button>
@@ -63,7 +63,7 @@ const Layout = () => {
                             <Search size={16} className="text-slate-400" />
                             <input
                                 type="text"
-                                placeholder="Search patients, medicines, invoices..."
+                                placeholder="Raadi bukaanno, daawooyin, biilo..."
                                 className="w-full border-none bg-transparent p-0 text-sm font-medium text-slate-700 focus:ring-0"
                             />
                         </div>
@@ -75,10 +75,10 @@ const Layout = () => {
                             <span>{formattedDate}</span>
                         </div>
                         <div className="topbar-chip hidden md:inline-flex">
-                            <span>1 Month</span>
+                            <span>1 Bil</span>
                             <ChevronDown size={14} />
                         </div>
-                        <button type="button" className="topbar-chip px-2.5" aria-label="Notifications">
+                        <button type="button" className="topbar-chip px-2.5" aria-label="Ogeysiisyo">
                             <Bell size={15} />
                         </button>
                         <Link to="/profile" className="topbar-chip">

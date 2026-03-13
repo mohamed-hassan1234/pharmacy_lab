@@ -27,7 +27,7 @@ import Profile from './pages/Profile';
 const DashboardPlaceholder = ({ title }) => (
   <div className="card text-center py-20">
     <h1 className="text-3xl font-bold text-slate-800 mb-4">{title}</h1>
-    <p className="text-medical-muted">This module is under development for the demo.</p>
+    <p className="text-medical-muted">Qaybtan wali waa la horumarinayaa.</p>
   </div>
 );
 
@@ -44,15 +44,12 @@ function App() {
 
             {/* Admin Routes */}
             <Route path="admin" element={<AdminDashboard />} />
-            <Route path="admin/finance" element={<DashboardPlaceholder title="Financial Analytics" />} />
             <Route path="admin/reports" element={<AdminReports />} />
-            <Route path="admin/staff" element={<DashboardPlaceholder title="Staff Management" />} />
-            <Route path="admin/inventory" element={<DashboardPlaceholder title="Inventory Management" />} />
 
             {/* Cashier Routes */}
             <Route path="cashier" element={<CashierDashboard />} />
             <Route path="cashier/register" element={<PatientRegistration />} />
-            <Route path="cashier/queue" element={<DashboardPlaceholder title="Queue Management" />} />
+            <Route path="cashier/queue" element={<DashboardPlaceholder title="Maamulka Safka" />} />
             <Route path="cashier/sales" element={<PharmacySales />} />
             <Route path="cashier/customers" element={<CustomerManagement />} />
             <Route path="cashier/medicines" element={<MedicineRegistration />} />
@@ -74,8 +71,8 @@ function App() {
             <Route path="lab/tests" element={<LabTests />} />
 
             <Route path="lab/tests/:id" element={<LabTests />} />
-            <Route path="lab/results" element={<DashboardPlaceholder title="Lab Results" />} />
-            <Route path="lab/settings" element={<DashboardPlaceholder title="Lab Settings" />} />
+            <Route path="lab/results" element={<DashboardPlaceholder title="Natiijooyinka Shaybaarka" />} />
+            <Route path="lab/settings" element={<DashboardPlaceholder title="Dejimaha Shaybaarka" />} />
 
             {/* Profile Route (All Users) */}
             <Route path="profile" element={<Profile />} />

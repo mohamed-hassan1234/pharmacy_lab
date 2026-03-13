@@ -30,6 +30,64 @@ const DoctorConsultation = () => {
         return `${boxes} ${boxLabel} + ${pills} ${pillLabel}`;
     };
 
+    const parseDispenseText = (dosage) => {
+        const text = (dosage || '').toString().toLowerCase();
+        const boxMatch = text.match(/(\d+)\s*box/);
+        const pillMatch = text.match(/(\d+)\s*pill/);
+        return {
+            requestedBoxes: boxMatch ? Number.parseInt(boxMatch[1], 10) : 0,
+            requestedPills: pillMatch ? Number.parseInt(pillMatch[1], 10) : 0
+        };
+    };
+
+    const mapMedicinesToForm = (medicines = []) => medicines.map((med) => {
+        const parsed = parseDispenseText(med.dosage);
+        return {
+            medicineId: med.medicineId,
+            name: med.name,
+            unitsPerBox: 1,
+            totalUnitsInStock: 0,
+            requestedBoxes: parsed.requestedBoxes,
+            requestedPills: parsed.requestedPills,
+            dosage: med.dosage || buildDispenseText(parsed.requestedBoxes, parsed.requestedPills),
+            duration: med.duration || ''
+        };
+    });
+
+    const openPrescriptionForm = (request) => {
+        setSelectedRequest(request);
+        setDiagnosis(request.doctorConclusion || '');
+        setPhysicalExam(request.physicalExamination || '');
+        setPrescribedMedicines(mapMedicinesToForm(request.medicines || []));
+        setShowPrescriptionForm(true);
+    };
+
+    const buildMedicinesPayload = () => {
+        if (!diagnosis.trim()) {
+            alert('Ogaanshaha waa qasab. Fadlan qor ogaanshaha.');
+            return null;
+        }
+
+        const invalidQty = prescribedMedicines.some((m) => (Number(m.requestedBoxes) || 0) === 0 && (Number(m.requestedPills) || 0) === 0);
+        if (invalidQty) {
+            alert('Fadlan geli kartoon ama xabbo daawo kasta oo la doortay.');
+            return null;
+        }
+
+        const missingDuration = prescribedMedicines.some((m) => !m.duration || !m.duration.trim());
+        if (missingDuration) {
+            alert('Fadlan geli muddada daawo kasta oo la doortay.');
+            return null;
+        }
+
+        return prescribedMedicines.map((m) => ({
+            medicineId: m.medicineId,
+            name: m.name,
+            dosage: buildDispenseText(Number(m.requestedBoxes) || 0, Number(m.requestedPills) || 0),
+            duration: m.duration
+        }));
+    };
+
 
     useEffect(() => {
         fetchMyLabRequests();
@@ -117,7 +175,9 @@ const DoctorConsultation = () => {
 
             const unitsPerBox = Number(item.unitsPerBox) || 1;
             const totalUnitsInStock = Number(item.totalUnitsInStock) || 0;
-            const maxBoxes = Math.floor(totalUnitsInStock / unitsPerBox);
+            const maxBoxes = totalUnitsInStock > 0
+                ? Math.floor(totalUnitsInStock / unitsPerBox)
+                : safeValue;
 
             let requestedBoxes = Number(item.requestedBoxes) || 0;
             let requestedPills = Number(item.requestedPills) || 0;
@@ -128,8 +188,10 @@ const DoctorConsultation = () => {
                 requestedPills = safeValue;
             }
 
-            const remainingUnitsAfterBoxes = Math.max(0, totalUnitsInStock - (requestedBoxes * unitsPerBox));
-            requestedPills = Math.min(requestedPills, remainingUnitsAfterBoxes);
+            if (totalUnitsInStock > 0) {
+                const remainingUnitsAfterBoxes = Math.max(0, totalUnitsInStock - (requestedBoxes * unitsPerBox));
+                requestedPills = Math.min(requestedPills, remainingUnitsAfterBoxes);
+            }
 
             return {
                 ...item,
@@ -140,21 +202,36 @@ const DoctorConsultation = () => {
         }));
     };
 
-    const handleSavePrescription = async () => {
-        if (!diagnosis) return alert('Diagnosis is required');
+    const resetConsultationState = () => {
+        setPrescribedMedicines([]);
+        setDiagnosis('');
+        setPhysicalExam('');
+        setSelectedRequest(null);
+        setShowPrescriptionForm(false);
+        setShowResults(false);
+    };
 
-        const invalidQty = prescribedMedicines.some((m) => (Number(m.requestedBoxes) || 0) === 0 && (Number(m.requestedPills) || 0) === 0);
-        if (invalidQty) return alert('Please set boxes or pills for each selected medicine');
+    const handleSendToCashier = async () => {
+        const medicinesPayload = buildMedicinesPayload();
+        if (!medicinesPayload || !selectedRequest) return;
 
-        const missingDuration = prescribedMedicines.some((m) => !m.duration || !m.duration.trim());
-        if (missingDuration) return alert('Please enter duration for each selected medicine');
+        try {
+            const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
+            await axios.patch(`http://localhost:5010/api/lab/requests/${selectedRequest._id}/send-to-cashier`, {
+                physicalExamination: physicalExam,
+                conclusion: diagnosis,
+                medicines: medicinesPayload
+            }, config);
 
-        const medicinesPayload = prescribedMedicines.map((m) => ({
-            medicineId: m.medicineId,
-            name: m.name,
-            dosage: buildDispenseText(Number(m.requestedBoxes) || 0, Number(m.requestedPills) || 0),
-            duration: m.duration
-        }));
+            alert('Qoraalka daawada waxaa loo diray qasnajiga.');
+            resetConsultationState();
+            fetchMyLabRequests();
+        } catch (err) { alert(err.response?.data?.message || 'Qalad ayaa ka dhacay dirista qoraalka qasnajiga.'); }
+    };
+
+    const handleFinalizeDecision = async () => {
+        const medicinesPayload = buildMedicinesPayload();
+        if (!medicinesPayload || !selectedRequest) return;
 
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
@@ -165,10 +242,8 @@ const DoctorConsultation = () => {
                 medicines: medicinesPayload
             };
 
-            // Save Prescription
             const { data: createdPrescription } = await axios.post('http://localhost:5010/api/doctor/prescriptions', payload, config);
 
-            // Finalize Lab Request
             await axios.patch(`http://localhost:5010/api/lab/requests/${selectedRequest._id}/finalize`, {
                 conclusion: diagnosis,
                 physicalExamination: physicalExam,
@@ -176,10 +251,9 @@ const DoctorConsultation = () => {
                 prescriptionId: createdPrescription?._id
             }, config);
 
-            // Update Patient Status
             await axios.patch(`http://localhost:5010/api/doctor/patients/${selectedRequest.patient?._id || selectedRequest.patient}/status`, { visitStatus: 'Outpatient' }, config);
 
-            if (window.confirm('Consultation finalized! Patient sent to pharmacy. Would you like to print the report now?')) {
+            if (window.confirm('Go\'aanka dambe waa la keydiyey bukaankana waxaa loo diray qasnaji/farmashiye. Ma doonaysaa in hadda la daabaco?')) {
                 handlePrintResults({
                     ...selectedRequest,
                     diagnosis,
@@ -188,13 +262,9 @@ const DoctorConsultation = () => {
                 });
             }
 
-            setPrescribedMedicines([]);
-            setDiagnosis('');
-            setPhysicalExam('');
-            setShowPrescriptionForm(false);
-            setShowResults(false);
+            resetConsultationState();
             fetchMyLabRequests();
-        } catch (err) { alert(err.response?.data?.message || 'Error saving prescription'); }
+        } catch (err) { alert(err.response?.data?.message || 'Qalad ayaa ka dhacay keydinta warqadda daawada.'); }
     };
 
 
@@ -237,8 +307,14 @@ const DoctorConsultation = () => {
                     <p><strong>Age:</strong> ${reportData.age} years | <strong>Sex:</strong> ${reportData.sex}</p>
                     <p><strong>Date:</strong> ${new Date(reportData.createdAt).toLocaleDateString()}</p>
                     <p><strong>Referencing Doctor:</strong> ${reportData.doctorName}</p>
+                    ${reportData.requestedTestInput ? `<p><strong>Requested Test:</strong> ${reportData.requestedTestInput}</p>` : ''}
                 </div>
-                ${reportData.requestedTests.hematology ? `
+                ${reportData.resultText ? `
+                <div class="section">
+                    <div class="section-title">LAB RESULT</div>
+                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;white-space:pre-wrap;">${reportData.resultText}</div>
+                </div>` : ''}
+                ${!reportData.resultText && reportData.requestedTests.hematology ? `
                 <div class="section">
                     <div class="section-title">HEMATOLOGY</div>
                     <table>
@@ -251,7 +327,7 @@ const DoctorConsultation = () => {
                     </table>
                 </div>` : ''}
 
-                ${reportData.requestedTests.biochemistry ? `
+                ${!reportData.resultText && reportData.requestedTests.biochemistry ? `
                 <div class="section">
                     <div class="section-title">BIOCHEMISTRY</div>
                     <table>
@@ -263,7 +339,7 @@ const DoctorConsultation = () => {
                         <tr><td class="label">Others:</td><td>${reportData.results.biochemistry.others || 'N/A'}</td></tr>
                     </table>
                 </div>` : ''}
-                ${reportData.requestedTests.serology ? `
+                ${!reportData.resultText && reportData.requestedTests.serology ? `
                 <div class="section">
                     <div class="section-title">SEROLOGY</div>
                     <table>
@@ -273,7 +349,7 @@ const DoctorConsultation = () => {
                         <tr><td class="label">Hepatitis:</td><td>${reportData.results.serology.hepatitis || 'N/A'}</td></tr>
                     </table>
                 </div>` : ''}
-                ${reportData.requestedTests.urinalysis ? `
+                ${!reportData.resultText && reportData.requestedTests.urinalysis ? `
                 <div class="section">
                     <div class="section-title">URINALYSIS</div>
                     <table>
@@ -283,7 +359,7 @@ const DoctorConsultation = () => {
                         <tr><td class="label">Microscopy:</td><td>${reportData.results.urinalysis.microscopy || 'N/A'}</td></tr>
                     </table>
                 </div>` : ''}
-                ${reportData.requestedTests.stoolExamination ? `
+                ${!reportData.resultText && reportData.requestedTests.stoolExamination ? `
                 <div class="section">
                     <div class="section-title">STOOL EXAMINATION</div>
                     <table>
@@ -331,7 +407,7 @@ const DoctorConsultation = () => {
             r.patientName.toLowerCase().includes(search.toLowerCase())
         )
         .sort((a, b) => {
-            const order = { 'Awaiting Doctor': 0, 'In Progress': 1, 'Paid': 2, 'Pending': 3, 'Reviewed': 4, 'Completed': 5 };
+            const order = { 'Awaiting Doctor': 0, 'Cashier Responded': 1, 'Sent to Cashier': 2, 'In Progress': 3, 'Paid': 4, 'Pending': 5, 'Reviewed': 6, 'Completed': 7 };
             const statusA = order[a.status] ?? 99;
             const statusB = order[b.status] ?? 99;
             if (statusA !== statusB) return statusA - statusB;
@@ -339,17 +415,16 @@ const DoctorConsultation = () => {
         });
 
 
-    const pendingCount = labRequests.filter(r => r.status === 'Pending').length;
-    const readyCount = labRequests.filter(r => r.status === 'Awaiting Doctor').length;
-    const completedCount = labRequests.filter(r => ['Reviewed', 'Completed'].includes(r.status)).length;
+    const readyCount = labRequests.filter(r => ['Awaiting Doctor', 'Cashier Responded'].includes(r.status)).length;
+    const sentCount = labRequests.filter(r => r.status === 'Sent to Cashier').length;
 
     return (
         <div className="page-section animate-in fade-in duration-700">
             <div className="section-header">
                 <h1 className="section-title flex items-center gap-3">
-                    <FileText size={30} className="text-primary" /> Consultation Room
+                    <FileText size={30} className="text-primary" /> Qolka La-talinta
                 </h1>
-                <p className="section-subtitle">View lab results, conclude diagnosis, and send prescriptions to pharmacy.</p>
+                <p className="section-subtitle">Eeg natiijooyinka, u dir qoraalka qasnajiga, hel jawaabta qasnajiga, ka dibna samee go'aanka ugu dambeeya.</p>
             </div>
 
             {/* Stats */}
@@ -361,10 +436,10 @@ const DoctorConsultation = () => {
                         </div>
                         <div>
                             <h4 className="text-3xl font-black text-blue-600">{labRequests.length}</h4>
-                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Total Requests</p>
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Wadarta Codsiyada</p>
                         </div>
                     </div>
-                    <p className="text-xs text-slate-500 font-bold">All lab requests you created</p>
+                    <p className="text-xs text-slate-500 font-bold">Dhammaan codsiyada shaybaarka ee aad samaysay</p>
                 </div>
 
                 <div className="card border-l-4 border-amber-500">
@@ -374,10 +449,10 @@ const DoctorConsultation = () => {
                         </div>
                         <div>
                             <h4 className="text-3xl font-black text-orange-600">{readyCount}</h4>
-                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Ready for Review</p>
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Shaqada Dhakhtarka</p>
                         </div>
                     </div>
-                    <p className="text-xs text-slate-500 font-bold">Results entered by lab/cashier</p>
+                    <p className="text-xs text-slate-500 font-bold">Waxay sugayaan dib-u-eegistaada ama go'aankaaga dambe</p>
                 </div>
 
                 <div className="card border-l-4 border-primary">
@@ -386,11 +461,11 @@ const DoctorConsultation = () => {
                             <CheckCircle className="text-emerald-600" size={32} />
                         </div>
                         <div>
-                            <h4 className="text-3xl font-black text-emerald-600">{completedCount}</h4>
-                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Reviewed/Done</p>
+                            <h4 className="text-3xl font-black text-emerald-600">{sentCount}</h4>
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Loo Diray Qasnajiga</p>
                         </div>
                     </div>
-                    <p className="text-xs text-slate-500 font-bold">Conclusion provided</p>
+                    <p className="text-xs text-slate-500 font-bold">Waxay sugayaan qoraalka qasnajiga</p>
                 </div>
 
             </div>
@@ -401,7 +476,7 @@ const DoctorConsultation = () => {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                     <input
                         type="text"
-                        placeholder="Search by ticket or patient name..."
+                        placeholder="Ku raadi tigidh ama magaca bukaanka..."
                         className="w-full pl-12"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
@@ -413,21 +488,21 @@ const DoctorConsultation = () => {
             <div className="card p-0 overflow-hidden">
                 <div className="border-b border-slate-200 bg-slate-50 p-6">
                     <h3 className="text-xl font-black flex items-center gap-3">
-                        <FileText /> My Lab Requests ({filtered.length})
+                        <FileText /> Codsiyadayda Shaybaarka ({filtered.length})
                     </h3>
-                    <p className="text-xs font-bold text-slate-500 mt-1 uppercase">Auto-refreshes every 10 seconds</p>
+                    <p className="text-xs font-bold text-slate-500 mt-1 uppercase">Si toos ah ayuu isu cusboonaysiiyaa 10 ilbiriqsi kasta</p>
                 </div>
                 <div className="table-shell rounded-none border-0">
                     <table className="data-table striped-table">
                         <thead>
                             <tr>
-                                <th>Ticket</th>
-                                <th>Patient</th>
-                                <th>Tests</th>
-                                <th>Payment</th>
-                                <th>Status</th>
-                                <th>Date</th>
-                                <th>Actions</th>
+                                <th>Tigidh</th>
+                                <th>Bukaan</th>
+                                <th>Baaritaanno</th>
+                                <th>Lacag-bixin</th>
+                                <th>Xaalad</th>
+                                <th>Taariikh</th>
+                                <th>Falal</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -438,33 +513,36 @@ const DoctorConsultation = () => {
                                     </td>
                                     <td className="px-8 py-5">
                                         <p className="font-black text-slate-800">{req.patientName}</p>
-                                        <p className="text-xs text-slate-400 font-bold">{req.age}y • {req.sex}</p>
+                                        <p className="text-xs text-slate-400 font-bold">{req.age} sano • {req.sex}</p>
                                     </td>
                                     <td className="px-8 py-5">
                                         <div className="flex flex-wrap gap-1">
                                             {req.requestedTests.hematology && <span className="text-[9px] font-black bg-blue-100 text-blue-600 px-2 py-0.5 rounded">HEMA</span>}
                                             {req.requestedTests.biochemistry && <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded">BIO</span>}
                                             {req.requestedTests.serology && <span className="text-[9px] font-black bg-purple-100 text-purple-600 px-2 py-0.5 rounded">SERO</span>}
-                                            {req.requestedTests.urinalysis && <span className="text-[9px] font-black bg-orange-100 text-orange-600 px-2 py-0.5 rounded">URINE</span>}
-                                            {req.requestedTests.stoolExamination && <span className="text-[9px] font-black bg-red-100 text-red-600 px-2 py-0.5 rounded">STOOL</span>}
+                                            {req.requestedTests.urinalysis && <span className="text-[9px] font-black bg-orange-100 text-orange-600 px-2 py-0.5 rounded">KAADI</span>}
+                                            {req.requestedTests.stoolExamination && <span className="text-[9px] font-black bg-red-100 text-red-600 px-2 py-0.5 rounded">SAXARO</span>}
                                         </div>
                                     </td>
                                     <td className="px-8 py-5">
                                         <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${req.isPaid ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
-                                            {req.isPaid ? 'PAID' : 'DUE'}
+                                            {req.isPaid ? 'LA BIXIYEY' : 'LAGU LEEYAHAY'}
                                         </span>
                                     </td>
                                     <td className="px-8 py-5">
                                         <div className="flex items-center gap-2">
-                                            {req.status === 'Awaiting Doctor' && (
-                                                <span className="animate-bounce bg-blue-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded">NEW</span>
+                                            {['Awaiting Doctor', 'Cashier Responded'].includes(req.status) && (
+                                                <span className="animate-bounce bg-blue-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded">CUSUB</span>
                                             )}
                                             {req.status === 'Completed' || req.status === 'Reviewed' ? <CheckCircle size={16} className="text-emerald-600" /> : <Clock size={16} className="text-orange-600 animate-pulse" />}
                                             <span className={`px-3 py-1 rounded-full text-xs font-black ${['Completed', 'Reviewed'].includes(req.status) ? 'bg-emerald-100 text-emerald-600' :
-                                                req.status === 'Awaiting Doctor' ? 'bg-blue-100 text-blue-600' :
-                                                    'bg-orange-100 text-orange-600'
+                                                ['Awaiting Doctor', 'Cashier Responded'].includes(req.status) ? 'bg-blue-100 text-blue-600' :
+                                                    req.status === 'Sent to Cashier' ? 'bg-amber-100 text-amber-700' : 'bg-orange-100 text-orange-600'
                                                 }`}>
-                                                {req.status === 'Awaiting Doctor' ? 'Ready for Review' : req.status}
+                                                {req.status === 'Awaiting Doctor' ? 'Diyaar u ah Dib-u-eegis' :
+                                                    req.status === 'Cashier Responded' ? 'Qasnaji Jawaabay' :
+                                                        req.status === 'Sent to Cashier' ? 'Loo Diray Qasnaji' :
+                                                            req.status}
                                             </span>
                                         </div>
                                     </td>
@@ -477,36 +555,39 @@ const DoctorConsultation = () => {
                                     </td>
                                     <td className="px-8 py-5">
                                         <div className="flex gap-2">
-                                            {['Awaiting Doctor', 'Reviewed', 'Completed'].includes(req.status) ? (
+                                            {['Awaiting Doctor', 'Sent to Cashier', 'Cashier Responded', 'Reviewed', 'Completed'].includes(req.status) ? (
                                                 <>
                                                     <button
                                                         onClick={() => {
-                                                            setSelectedRequest(req);
-                                                            setDiagnosis(req.doctorConclusion || '');
-                                                            setShowPrescriptionForm(true);
+                                                            openPrescriptionForm(req);
                                                         }}
                                                         className={`px-4 py-2 rounded-xl font-black text-xs uppercase flex items-center gap-2 transition-colors ${req.status === 'Awaiting Doctor'
                                                             ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20'
+                                                            : req.status === 'Cashier Responded'
+                                                                ? 'bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-600/20'
                                                             : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
                                                             }`}
                                                     >
                                                         <FileText size={16} />
-                                                        {req.status === 'Awaiting Doctor' ? 'Review & Conclude' : 'View Consultation'}
+                                                        {req.status === 'Awaiting Doctor' ? 'Diyaari Qoraalka' :
+                                                            req.status === 'Sent to Cashier' ? 'Eeg Qoraalka La Diray' :
+                                                                req.status === 'Cashier Responded' ? 'Go\'aanka Dambe' :
+                                                                    'Eeg La-talinta'}
                                                     </button>
 
                                                     <button
                                                         onClick={() => handlePrintResults(req)}
                                                         className="p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-                                                        title="Print"
+                                                        title="Daabac"
                                                     >
-                                                        <Printer size={18} />
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <span className="px-4 py-2 rounded-xl bg-orange-50 text-orange-600 font-black text-xs uppercase flex items-center gap-2">
-                                                    <Clock size={16} className="animate-pulse" /> Pending Lab
-                                                </span>
-                                            )}
+                                                    <Printer size={18} />
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <span className="px-4 py-2 rounded-xl bg-orange-50 text-orange-600 font-black text-xs uppercase flex items-center gap-2">
+                                                    <Clock size={16} className="animate-pulse" /> Shaybaar Sugaya
+                                            </span>
+                                        )}
                                         </div>
                                     </td>
 
@@ -523,18 +604,18 @@ const DoctorConsultation = () => {
                     <div className="bg-white w-full max-w-4xl rounded-[3rem] p-10 shadow-2xl my-8">
                         <div className="flex justify-between items-center mb-6">
                             <div>
-                                <h3 className="text-3xl font-black text-slate-800 uppercase italic">Lab Results</h3>
+                                <h3 className="text-3xl font-black text-slate-800 uppercase italic">Natiijooyinka Shaybaarka</h3>
                                 <p className="text-slate-600 font-bold">{selectedRequest.patientName} • {selectedRequest.ticketNumber}</p>
                             </div>
                             <button onClick={() => setShowResults(false)} className="px-6 py-3 bg-slate-100 rounded-2xl font-black uppercase hover:bg-slate-200">
-                                Close
+                                Xir
                             </button>
                         </div>
 
                         <div className="bg-blue-50 p-6 rounded-2xl mb-6 border-2 border-blue-100">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <p className="text-xs font-black text-slate-400 uppercase">Patient</p>
+                                    <p className="text-xs font-black text-slate-400 uppercase">Bukaan</p>
                                     <p className="font-black text-slate-800">{selectedRequest.patientName}</p>
                                 </div>
                                 <div>
@@ -564,6 +645,22 @@ const DoctorConsultation = () => {
                         </div>
 
                         <div className="space-y-6 max-h-[600px] overflow-y-auto pr-4">
+                            {selectedRequest.resultText ? (
+                                <div className="bg-emerald-50 p-6 rounded-2xl border-2 border-emerald-100">
+                                    <h4 className="text-lg font-black text-emerald-900 mb-4 uppercase">Lab Result</h4>
+                                    {selectedRequest.requestedTestInput && (
+                                        <div className="bg-white p-4 rounded-xl mb-4">
+                                            <p className="text-xs font-black text-slate-400 uppercase">Requested Test</p>
+                                            <p className="text-base font-black text-slate-800 whitespace-pre-wrap">{selectedRequest.requestedTestInput}</p>
+                                        </div>
+                                    )}
+                                    <div className="bg-white p-4 rounded-xl">
+                                        <p className="text-xs font-black text-slate-400 uppercase mb-2">Result</p>
+                                        <p className="text-base font-black text-slate-800 whitespace-pre-wrap">{selectedRequest.resultText}</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
                             {/* Hematology */}
                             {selectedRequest.requestedTests.hematology && (
                                 <div className="bg-blue-50 p-6 rounded-2xl border-2 border-blue-100">
@@ -705,6 +802,8 @@ const DoctorConsultation = () => {
                                     </div>
                                 </div>
                             )}
+                                </>
+                            )}
                         </div>
 
                         {/* Conclusion Section */}
@@ -777,6 +876,21 @@ const DoctorConsultation = () => {
                             </h3>
 
                             <div className="space-y-6">
+                                {selectedRequest.resultText ? (
+                                    <div className="bg-white p-6 rounded-3xl border border-emerald-100 shadow-sm transition-all hover:shadow-md">
+                                        <h4 className="text-[10px] font-black text-emerald-600 uppercase mb-4 tracking-widest">Lab Result</h4>
+                                        {selectedRequest.requestedTestInput && (
+                                            <div className="mb-4">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Requested Test</p>
+                                                <p className="text-sm font-black text-slate-800 whitespace-pre-wrap">{selectedRequest.requestedTestInput}</p>
+                                            </div>
+                                        )}
+                                        <div className="bg-slate-50 rounded-2xl p-4">
+                                            <p className="text-sm font-black text-slate-800 whitespace-pre-wrap">{selectedRequest.resultText}</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
                                 {selectedRequest.results.hematology && (
                                     <div className="bg-white p-6 rounded-3xl border border-blue-100 shadow-sm transition-all hover:shadow-md">
                                         <h4 className="text-[10px] font-black text-blue-600 uppercase mb-4 tracking-widest">Hematology</h4>
@@ -846,6 +960,8 @@ const DoctorConsultation = () => {
                                         </div>
                                     </div>
                                 )}
+                                    </>
+                                )}
                             </div>
                         </div>
 
@@ -853,8 +969,8 @@ const DoctorConsultation = () => {
                         <div className="flex-1 overflow-y-auto p-12 relative flex flex-col custom-scrollbar">
                             <div className="flex justify-between items-start mb-8">
                                 <div>
-                                    <h3 className="text-4xl font-black text-slate-800 uppercase italic">Final Consultation</h3>
-                                    <p className="text-slate-400 font-bold uppercase text-[10px] mt-2 tracking-[0.3em]">Patient: {selectedRequest.patientName} | Ticket: {selectedRequest.ticketNumber}</p>
+                                    <h3 className="text-4xl font-black text-slate-800 uppercase italic">Socodka Qoraalka Dhakhtarka</h3>
+                                    <p className="text-slate-400 font-bold uppercase text-[10px] mt-2 tracking-[0.3em]">Bukaan: {selectedRequest.patientName} | Tigidh: {selectedRequest.ticketNumber}</p>
                                 </div>
                                 <button onClick={() => setShowPrescriptionForm(false)} className="p-4 bg-slate-100 hover:bg-slate-200 rounded-full transition-all hover:rotate-90">
                                     <Search className="rotate-45" size={24} />
@@ -864,27 +980,40 @@ const DoctorConsultation = () => {
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                                 <div className="space-y-8">
                                     <div className="group">
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[.3em] mb-4 px-2 group-focus-within:text-emerald-500 transition-colors">1. The Disease (Diagnosis)</label>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[.3em] mb-4 px-2 group-focus-within:text-emerald-500 transition-colors">1. Ogaanshaha</label>
                                         <textarea
                                             className="w-full bg-slate-50 border-2 border-slate-100 rounded-[2rem] p-8 font-bold text-xl text-slate-800 focus:border-emerald-500 focus:bg-white outline-none h-56 shadow-inner transition-all resize-none"
-                                            placeholder="Write the final diagnosis/disease here..."
+                                            placeholder="Halkan ku qor qoraalka dhakhtarka ama ogaanshaha dambe..."
                                             value={diagnosis}
                                             onChange={e => setDiagnosis(e.target.value)}
+                                            readOnly={['Completed', 'Reviewed'].includes(selectedRequest.status)}
                                         ></textarea>
                                     </div>
                                     <div className="group">
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[.3em] mb-4 px-2 group-focus-within:text-blue-500 transition-colors">2. Physical Exam / Notes</label>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[.3em] mb-4 px-2 group-focus-within:text-blue-500 transition-colors">2. Baaritaanka Jirka / Faahfaahin</label>
                                         <textarea
                                             className="w-full bg-slate-50 border-2 border-slate-100 rounded-[2rem] p-8 font-bold text-slate-800 focus:border-blue-500 focus:bg-white outline-none h-44 shadow-inner transition-all resize-none"
-                                            placeholder="Document any physical findings or extra notes..."
+                                            placeholder="Halkan ku qor waxyaabaha baaritaanka jirka ama faahfaahin dheeraad ah..."
                                             value={physicalExam}
                                             onChange={e => setPhysicalExam(e.target.value)}
+                                            readOnly={['Completed', 'Reviewed'].includes(selectedRequest.status)}
                                         ></textarea>
                                     </div>
+                                    {selectedRequest.cashierResponse && (
+                                        <div className="rounded-[2rem] border-2 border-amber-200 bg-amber-50 p-6">
+                                            <p className="text-[10px] font-black text-amber-700 uppercase tracking-[.3em] mb-3">Cashier Reply / Jawaabta Qasnajiga</p>
+                                            <p className="font-bold text-slate-700 whitespace-pre-wrap">{selectedRequest.cashierResponse}</p>
+                                            {selectedRequest.cashierRespondedAt && (
+                                                <p className="text-xs font-black text-amber-700 mt-3">
+                                                    La helay: {new Date(selectedRequest.cashierRespondedAt).toLocaleString()}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="space-y-6">
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[.3em] px-2">3. Prescribe Medicines</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[.3em] px-2">3. Qor Daawooyinka</label>
 
                                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                                         <div className="bg-slate-50 border-2 border-slate-100 rounded-[2rem] p-5">
@@ -893,20 +1022,21 @@ const DoctorConsultation = () => {
                                                 <input
                                                     type="text"
                                                     className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl font-bold text-slate-800 focus:border-emerald-500 outline-none transition-all"
-                                                    placeholder="Search medicine name or category..."
+                                                    placeholder="Raadi magaca daawada ama qaybta..."
                                                     value={medicineSearch}
                                                     onChange={e => handleSearchMedicine(e.target.value)}
                                                     onFocus={() => {
                                                         if (!medicineSearch.trim()) fetchAvailableMedicines('');
                                                     }}
+                                                    disabled={['Completed', 'Reviewed'].includes(selectedRequest.status)}
                                                 />
                                             </div>
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">Available Medicines</p>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">Daawooyinka Jira</p>
 
                                             <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
                                                 {foundMedicines.length === 0 ? (
                                                     <div className="bg-white rounded-2xl p-6 border border-dashed border-slate-200 text-center">
-                                                        <p className="text-xs font-bold text-slate-400">No medicines found.</p>
+                                                        <p className="text-xs font-bold text-slate-400">Daawo lama helin.</p>
                                                     </div>
                                                 ) : foundMedicines.map((med) => {
                                                     const stock = formatMedicineStock(med);
@@ -916,16 +1046,16 @@ const DoctorConsultation = () => {
                                                             key={med._id}
                                                             type="button"
                                                             onClick={() => addMedicine(med)}
-                                                            disabled={isSelected}
+                                                            disabled={isSelected || ['Completed', 'Reviewed'].includes(selectedRequest.status)}
                                                             className={`w-full text-left p-4 rounded-2xl border transition-all ${isSelected ? 'bg-emerald-50 border-emerald-200 opacity-70 cursor-not-allowed' : 'bg-white border-slate-200 hover:border-emerald-300 hover:bg-emerald-50'}`}
                                                         >
                                                             <p className="font-black text-slate-800 uppercase italic flex items-center gap-2">
                                                                 <Beaker size={15} className="text-emerald-500" /> {med.name}
                                                             </p>
                                                             <div className="flex justify-between items-center mt-2">
-                                                                <span className="text-[10px] font-bold text-slate-400 uppercase">{med.category || 'General'}</span>
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase">{med.category || 'Guud'}</span>
                                                                 <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                                                                    {stock.boxes} Boxes + {stock.pills} Pills
+                                                                    {stock.boxes} Kartoon + {stock.pills} Xabbo
                                                                 </span>
                                                             </div>
                                                         </button>
@@ -935,11 +1065,11 @@ const DoctorConsultation = () => {
                                         </div>
 
                                         <div className="bg-white border-2 border-slate-100 rounded-[2rem] p-5">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">Selected Medicines</p>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">Daawooyinka La Doortay</p>
                                             <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
                                                 {prescribedMedicines.length === 0 ? (
                                                     <div className="bg-slate-50 rounded-2xl p-10 border border-dashed border-slate-200 text-center">
-                                                        <p className="text-xs font-bold text-slate-400 uppercase">Select medicine from the left side</p>
+                                                        <p className="text-xs font-bold text-slate-400 uppercase">Ka dooro daawo dhinaca bidix</p>
                                                     </div>
                                                 ) : prescribedMedicines.map((item, index) => {
                                                     const stock = formatMedicineStock(item);
@@ -949,13 +1079,14 @@ const DoctorConsultation = () => {
                                                                 <div>
                                                                     <p className="font-black text-slate-800 uppercase italic">{item.name}</p>
                                                                     <p className="text-[10px] font-bold text-slate-400 mt-1">
-                                                                        Available: {stock.boxes} Boxes + {stock.pills} Pills
+                                                                        Jira: {stock.boxes} Kartoon + {stock.pills} Xabbo
                                                                     </p>
                                                                 </div>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setPrescribedMedicines(prescribedMedicines.filter((_, i) => i !== index))}
                                                                     className="text-slate-300 hover:text-red-500 transition-colors p-1"
+                                                                    disabled={['Completed', 'Reviewed'].includes(selectedRequest.status)}
                                                                 >
                                                                     <Search className="rotate-45" size={18} />
                                                                 </button>
@@ -963,42 +1094,45 @@ const DoctorConsultation = () => {
 
                                                             <div className="grid grid-cols-3 gap-3 mb-3">
                                                                 <div>
-                                                                    <label className="text-[9px] font-black text-slate-400 uppercase">Boxes</label>
+                                                                    <label className="text-[9px] font-black text-slate-400 uppercase">Kartoon</label>
                                                                     <input
                                                                         type="number"
                                                                         min="0"
                                                                         className="w-full bg-white rounded-xl border border-slate-200 p-2 text-sm font-bold outline-none focus:border-emerald-400"
                                                                         value={item.requestedBoxes}
                                                                         onChange={(e) => updateRequestedQuantity(index, 'requestedBoxes', e.target.value)}
+                                                                        disabled={['Completed', 'Reviewed'].includes(selectedRequest.status)}
                                                                     />
                                                                 </div>
                                                                 <div>
-                                                                    <label className="text-[9px] font-black text-slate-400 uppercase">Pills</label>
+                                                                    <label className="text-[9px] font-black text-slate-400 uppercase">Xabbo</label>
                                                                     <input
                                                                         type="number"
                                                                         min="0"
                                                                         className="w-full bg-white rounded-xl border border-slate-200 p-2 text-sm font-bold outline-none focus:border-emerald-400"
                                                                         value={item.requestedPills}
                                                                         onChange={(e) => updateRequestedQuantity(index, 'requestedPills', e.target.value)}
+                                                                        disabled={['Completed', 'Reviewed'].includes(selectedRequest.status)}
                                                                     />
                                                                 </div>
                                                                 <div>
-                                                                    <label className="text-[9px] font-black text-slate-400 uppercase">Duration</label>
+                                                                    <label className="text-[9px] font-black text-slate-400 uppercase">Muddo</label>
                                                                     <input
                                                                         type="text"
-                                                                        placeholder="e.g. 5 days"
+                                                                        placeholder="tusaale 5 maalmood"
                                                                         className="w-full bg-white rounded-xl border border-slate-200 p-2 text-sm font-bold outline-none focus:border-emerald-400"
                                                                         value={item.duration}
                                                                         onChange={(e) => {
                                                                             const value = e.target.value;
                                                                             setPrescribedMedicines((prev) => prev.map((med, i) => i === index ? { ...med, duration: value } : med));
                                                                         }}
+                                                                        disabled={['Completed', 'Reviewed'].includes(selectedRequest.status)}
                                                                     />
                                                                 </div>
                                                             </div>
 
                                                             <p className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-2 py-1 inline-block">
-                                                                Dispense: {item.dosage || buildDispenseText(0, 0)}
+                                                                Bixi: {item.dosage || buildDispenseText(0, 0)}
                                                             </p>
                                                         </div>
                                                     );
@@ -1014,14 +1148,30 @@ const DoctorConsultation = () => {
                                     onClick={() => setShowPrescriptionForm(false)}
                                     className="px-12 bg-slate-100 text-slate-600 font-black py-6 rounded-[2.5rem] uppercase italic tracking-widest hover:bg-slate-200 transition-all border-b-4 border-slate-200"
                                 >
-                                    Cancel
+                                    Xir
                                 </button>
-                                <button
-                                    onClick={handleSavePrescription}
-                                    className="flex-1 bg-emerald-600 text-white font-black py-6 rounded-[2.5rem] uppercase italic tracking-[.2em] shadow-2xl shadow-emerald-500/30 hover:bg-emerald-700 hover:-translate-y-1 transition-all flex items-center justify-center gap-4 text-2xl border-b-4 border-emerald-800"
-                                >
-                                    <CheckCircle size={36} className="drop-shadow-lg" /> Finalize Consultation
-                                </button>
+                                {selectedRequest.status === 'Cashier Responded' ? (
+                                    <button
+                                        onClick={handleFinalizeDecision}
+                                        className="flex-1 bg-emerald-600 text-white font-black py-6 rounded-[2.5rem] uppercase italic tracking-[.2em] shadow-2xl shadow-emerald-500/30 hover:bg-emerald-700 hover:-translate-y-1 transition-all flex items-center justify-center gap-4 text-2xl border-b-4 border-emerald-800"
+                                    >
+                                        <CheckCircle size={36} className="drop-shadow-lg" /> Go'aanka Dambe
+                                    </button>
+                                ) : selectedRequest.status === 'Completed' || selectedRequest.status === 'Reviewed' ? (
+                                    <button
+                                        onClick={() => handlePrintResults(selectedRequest)}
+                                        className="flex-1 bg-blue-600 text-white font-black py-6 rounded-[2.5rem] uppercase italic tracking-[.2em] shadow-2xl shadow-blue-500/30 hover:bg-blue-700 hover:-translate-y-1 transition-all flex items-center justify-center gap-4 text-2xl border-b-4 border-blue-800"
+                                    >
+                                        <Printer size={36} className="drop-shadow-lg" /> Daabac Warbixinta
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={handleSendToCashier}
+                                        className="flex-1 bg-amber-600 text-white font-black py-6 rounded-[2.5rem] uppercase italic tracking-[.16em] shadow-2xl shadow-amber-500/30 hover:bg-amber-700 hover:-translate-y-1 transition-all flex items-center justify-center gap-4 text-xl border-b-4 border-amber-800"
+                                    >
+                                        <CheckCircle size={32} className="drop-shadow-lg" /> U Dir Qasnajiga
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
