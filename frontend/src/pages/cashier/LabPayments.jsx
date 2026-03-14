@@ -8,6 +8,16 @@ const LabPayments = () => {
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [amount, setAmount] = useState('');
 
+    const getRequestedTestEntries = (requestedTests = {}) => [
+        { key: 'hematology', label: 'Hematology', className: 'bg-blue-50 text-blue-600' },
+        { key: 'biochemistry', label: 'Biochemistry', className: 'bg-emerald-50 text-emerald-600' },
+        { key: 'serology', label: 'Serology', className: 'bg-purple-50 text-purple-600' },
+        { key: 'urinalysis', label: 'Urinalysis', className: 'bg-orange-50 text-orange-600' },
+        { key: 'stoolExamination', label: 'Stool', className: 'bg-red-50 text-red-600' }
+    ].filter((entry) => requestedTests?.[entry.key]);
+
+    const getRequestedTestText = (request) => String(request?.requestedTestInput || '').trim();
+
     useEffect(() => {
         fetchPendingPayments();
     }, []);
@@ -87,6 +97,12 @@ const LabPayments = () => {
                                 </tr>
                             ) : filtered.map((req) => (
                                 <tr key={req._id}>
+                                    {(() => {
+                                        const requestedTestEntries = getRequestedTestEntries(req.requestedTests);
+                                        const requestedTestText = getRequestedTestText(req);
+
+                                        return (
+                                            <>
                                     <td className="px-8 py-5 font-black text-blue-600">{req.ticketNumber}</td>
                                     <td className="px-8 py-5">
                                         <p className="font-black text-slate-800 uppercase">{req.patientName}</p>
@@ -94,12 +110,15 @@ const LabPayments = () => {
                                     </td>
                                     <td className="px-8 py-5">
                                         <div className="flex flex-wrap gap-1">
-                                            {req.requestedTests.hematology && <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black rounded uppercase">Hematology</span>}
-                                            {req.requestedTests.biochemistry && <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded uppercase">Biochemistry</span>}
-                                            {req.requestedTests.serology && <span className="px-2 py-0.5 bg-purple-50 text-purple-600 text-[10px] font-black rounded uppercase">Serology</span>}
-                                            {req.requestedTests.urinalysis && <span className="px-2 py-0.5 bg-orange-50 text-orange-600 text-[10px] font-black rounded uppercase">Urinalysis</span>}
-                                            {req.requestedTests.stoolExamination && <span className="px-2 py-0.5 bg-red-50 text-red-600 text-[10px] font-black rounded uppercase">Stool</span>}
+                                            {requestedTestEntries.map((entry) => (
+                                                <span key={entry.key} className={`px-2 py-0.5 text-[10px] font-black rounded uppercase ${entry.className}`}>
+                                                    {entry.label}
+                                                </span>
+                                            ))}
                                         </div>
+                                        {requestedTestText ? (
+                                            <p className="mt-2 text-xs font-bold text-slate-500 whitespace-pre-wrap">{requestedTestText}</p>
+                                        ) : null}
                                     </td>
                                     <td className="px-8 py-5">
                                         <button
@@ -109,6 +128,9 @@ const LabPayments = () => {
                                             <CreditCard size={16} /> Confirm Payment
                                         </button>
                                     </td>
+                                            </>
+                                        );
+                                    })()}
                                 </tr>
                             ))}
                         </tbody>
@@ -118,6 +140,11 @@ const LabPayments = () => {
 
             {selectedRequest && (
                 <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex items-center justify-center p-6">
+                    {(() => {
+                        const selectedRequestedTests = getRequestedTestEntries(selectedRequest.requestedTests);
+                        const selectedRequestedText = getRequestedTestText(selectedRequest);
+
+                        return (
                     <div className="bg-white w-full max-w-lg rounded-[3rem] p-10 shadow-2xl relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-2 bg-blue-600"></div>
                         <div className="flex justify-between items-start mb-8">
@@ -138,11 +165,13 @@ const LabPayments = () => {
                                 <div>
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ordered Tests</p>
                                     <p className="text-sm font-bold text-slate-600">
-                                        {Object.entries(selectedRequest.requestedTests)
-                                            .filter(([_, value]) => value === true)
-                                            .map(([key]) => key.charAt(0).toUpperCase() + key.slice(1))
-                                            .join(', ')}
+                                        {selectedRequestedTests.length
+                                            ? selectedRequestedTests.map((entry) => entry.label).join(', ')
+                                            : (selectedRequestedText || 'No test details recorded')}
                                     </p>
+                                    {selectedRequestedText ? (
+                                        <p className="mt-2 text-xs font-bold text-slate-500 whitespace-pre-wrap">{selectedRequestedText}</p>
+                                    ) : null}
                                 </div>
                             </div>
                         </div>
@@ -168,6 +197,8 @@ const LabPayments = () => {
                             </button>
                         </div>
                     </div>
+                        );
+                    })()}
                 </div>
             )}
         </div>

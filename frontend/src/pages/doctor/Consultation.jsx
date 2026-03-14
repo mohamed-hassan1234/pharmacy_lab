@@ -16,6 +16,16 @@ const DoctorConsultation = () => {
     const [diagnosis, setDiagnosis] = useState('');
     const [physicalExam, setPhysicalExam] = useState('');
 
+    const getRequestedTestEntries = (requestedTests = {}) => [
+        { key: 'hematology', short: 'HEMA', className: 'bg-blue-100 text-blue-600' },
+        { key: 'biochemistry', short: 'BIO', className: 'bg-emerald-100 text-emerald-600' },
+        { key: 'serology', short: 'SERO', className: 'bg-purple-100 text-purple-600' },
+        { key: 'urinalysis', short: 'KAADI', className: 'bg-orange-100 text-orange-600' },
+        { key: 'stoolExamination', short: 'SAXARO', className: 'bg-red-100 text-red-600' }
+    ].filter((entry) => requestedTests?.[entry.key]);
+
+    const getRequestedTestText = (request) => String(request?.requestedTestInput || '').trim();
+
     const formatMedicineStock = (medicine) => {
         const unitsPerBox = Number(medicine?.unitsPerBox) || 1;
         const totalUnitsInStock = Number(medicine?.totalUnitsInStock) || 0;
@@ -508,6 +518,12 @@ const DoctorConsultation = () => {
                         <tbody>
                             {filtered.map((req) => (
                                 <tr key={req._id}>
+                                    {(() => {
+                                        const requestedTestEntries = getRequestedTestEntries(req.requestedTests);
+                                        const requestedTestText = getRequestedTestText(req);
+
+                                        return (
+                                            <>
                                     <td className="px-8 py-5">
                                         <span className="font-black text-emerald-600">{req.ticketNumber}</span>
                                     </td>
@@ -517,12 +533,15 @@ const DoctorConsultation = () => {
                                     </td>
                                     <td className="px-8 py-5">
                                         <div className="flex flex-wrap gap-1">
-                                            {req.requestedTests.hematology && <span className="text-[9px] font-black bg-blue-100 text-blue-600 px-2 py-0.5 rounded">HEMA</span>}
-                                            {req.requestedTests.biochemistry && <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded">BIO</span>}
-                                            {req.requestedTests.serology && <span className="text-[9px] font-black bg-purple-100 text-purple-600 px-2 py-0.5 rounded">SERO</span>}
-                                            {req.requestedTests.urinalysis && <span className="text-[9px] font-black bg-orange-100 text-orange-600 px-2 py-0.5 rounded">KAADI</span>}
-                                            {req.requestedTests.stoolExamination && <span className="text-[9px] font-black bg-red-100 text-red-600 px-2 py-0.5 rounded">SAXARO</span>}
+                                            {requestedTestEntries.map((entry) => (
+                                                <span key={entry.key} className={`text-[9px] font-black px-2 py-0.5 rounded ${entry.className}`}>
+                                                    {entry.short}
+                                                </span>
+                                            ))}
                                         </div>
+                                        {requestedTestText ? (
+                                            <p className="mt-2 text-xs font-bold text-slate-500 whitespace-pre-wrap">{requestedTestText}</p>
+                                        ) : null}
                                     </td>
                                     <td className="px-8 py-5">
                                         <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${req.isPaid ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
@@ -590,6 +609,9 @@ const DoctorConsultation = () => {
                                         )}
                                         </div>
                                     </td>
+                                            </>
+                                        );
+                                    })()}
 
                                 </tr>
                             ))}

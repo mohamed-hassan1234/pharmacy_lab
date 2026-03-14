@@ -21,6 +21,16 @@ const LabTests = () => {
     });
     const [resultText, setResultText] = useState('');
 
+    const getRequestedTestEntries = (requestedTests = {}) => [
+        { key: 'hematology', short: 'HEMA', label: 'Hematology', className: 'bg-blue-100 text-blue-600' },
+        { key: 'biochemistry', short: 'BIO', label: 'Biochemistry', className: 'bg-emerald-100 text-emerald-600' },
+        { key: 'serology', short: 'SERO', label: 'Serology', className: 'bg-purple-100 text-purple-600' },
+        { key: 'urinalysis', short: 'URINE', label: 'Urinalysis', className: 'bg-orange-100 text-orange-600' },
+        { key: 'stoolExamination', short: 'STOOL', label: 'Stool Examination', className: 'bg-red-100 text-red-600' }
+    ].filter((entry) => requestedTests?.[entry.key]);
+
+    const getRequestedTestText = (request) => String(request?.requestedTestInput || '').trim();
+
     const emptyResults = {
         hematology: { hb: '', wbc: '', rbc: '', mcv: '', mch: '', platelets: '' },
         biochemistry: { bloodSugar: '', urea: '', creatinine: '', alt: '', ast: '', others: '' },
@@ -297,6 +307,12 @@ const LabTests = () => {
                         <tbody>
                             {filtered.map((req) => (
                                 <tr key={req._id}>
+                                    {(() => {
+                                        const requestedTestEntries = getRequestedTestEntries(req.requestedTests);
+                                        const requestedTestText = getRequestedTestText(req);
+
+                                        return (
+                                            <>
                                     <td className="px-8 py-5">
                                         <span className="font-black text-purple-600">{req.ticketNumber}</span>
                                         <p className="text-xs text-slate-400 font-bold">{new Date(req.createdAt).toLocaleDateString()}</p>
@@ -307,12 +323,15 @@ const LabTests = () => {
                                     </td>
                                     <td className="px-8 py-5">
                                         <div className="flex flex-wrap gap-1">
-                                            {req.requestedTests.hematology && <span className="text-[9px] font-black bg-blue-100 text-blue-600 px-2 py-0.5 rounded">HEMA</span>}
-                                            {req.requestedTests.biochemistry && <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded">BIO</span>}
-                                            {req.requestedTests.serology && <span className="text-[9px] font-black bg-purple-100 text-purple-600 px-2 py-0.5 rounded">SERO</span>}
-                                            {req.requestedTests.urinalysis && <span className="text-[9px] font-black bg-orange-100 text-orange-600 px-2 py-0.5 rounded">URINE</span>}
-                                            {req.requestedTests.stoolExamination && <span className="text-[9px] font-black bg-red-100 text-red-600 px-2 py-0.5 rounded">STOOL</span>}
+                                            {requestedTestEntries.map((entry) => (
+                                                <span key={entry.key} className={`text-[9px] font-black px-2 py-0.5 rounded ${entry.className}`}>
+                                                    {entry.short}
+                                                </span>
+                                            ))}
                                         </div>
+                                        {requestedTestText ? (
+                                            <p className="mt-2 text-xs font-bold text-slate-500 whitespace-pre-wrap">{requestedTestText}</p>
+                                        ) : null}
                                     </td>
                                     <td className="px-8 py-5">
                                         <span className={`px-3 py-1 rounded-full text-xs font-black ${req.status === 'Completed' ? 'bg-emerald-100 text-emerald-600' :
@@ -367,6 +386,9 @@ const LabTests = () => {
 
                                         </div>
                                     </td>
+                                            </>
+                                        );
+                                    })()}
                                 </tr>
                             ))}
                         </tbody>

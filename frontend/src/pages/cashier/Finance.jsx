@@ -5,6 +5,7 @@ import {
   CreditCard,
   FileBarChart,
   Package,
+  Printer,
   RefreshCcw,
   TrendingUp,
   Wallet
@@ -34,6 +35,18 @@ const PERIOD_OPTIONS = [
 const formatMoney = (value) => `${Number(value || 0).toLocaleString()} SOS`;
 const formatUsd = (value) => `$${convertSosToUsd(Number(value || 0))} USD`;
 const formatDualMoney = (value) => `${formatMoney(value)} / ${formatUsd(value)}`;
+const escapeHtml = (value) => String(value ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+const formatDateValue = (value, includeTime = false) => {
+  if (!value) return 'N/A';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'N/A';
+  return includeTime ? date.toLocaleString() : date.toLocaleDateString();
+};
 
 const getComparisonLabel = (current, previous) => {
   const currentValue = Number(current || 0);
@@ -151,6 +164,200 @@ function CashierFinance({
   const accountingNotes = report?.accountingNotes || {};
   const hasDateRange = Boolean(startDate && endDate);
 
+  const buildPrintTable = (columns, rows, emptyMessage) => {
+    if (!rows.length) {
+      return `<div class="empty-row">${escapeHtml(emptyMessage)}</div>`;
+    }
+
+    return `
+      <table>
+        <thead>
+          <tr>
+            ${columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((row) => `
+            <tr>
+              ${columns.map((column) => `<td>${column.render ? column.render(row) : escapeHtml(row?.[column.key] ?? '')}</td>`).join('')}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  };
+
+  const printFinanceReport = () => {
+    if (!report) return;
+
+    const printWindow = window.open('', '', 'width=1200,height=900');
+    if (!printWindow) {
+      alert('Fadlan u oggolow browser-ka inuu furo daaqadda daabacaadda.');
+      return;
+    }
+
+    const summaryCards = [
+      { label: 'Wadarta Iibka', value: formatMoney(summary.totalRevenue), secondary: formatUsd(summary.totalRevenue), comparison: getComparisonLabel(summary.totalRevenue, previous.totalRevenue) },
+      { label: 'Kharashka Alaabta La Iibiyey', value: formatMoney(summary.totalCost), secondary: formatUsd(summary.totalCost), comparison: getComparisonLabel(summary.totalCost, previous.totalCost) },
+      { label: 'Dakhliga Saafiga ah', value: formatMoney(summary.netIncome), secondary: formatUsd(summary.netIncome), comparison: getComparisonLabel(summary.netIncome, previous.netIncome) },
+      { label: 'Biilasha', value: String(summary.invoiceCount || 0), secondary: 'Tirada biilasha muddadan', comparison: getComparisonLabel(summary.invoiceCount, previous.invoiceCount) },
+      { label: 'Iibka Kaashka', value: formatMoney(summary.cashRevenue), secondary: formatUsd(summary.cashRevenue) },
+      { label: 'Iibka Daynta', value: formatMoney(summary.creditRevenue), secondary: formatUsd(summary.creditRevenue) },
+      { label: 'Qiimaha Wax Iibsiga ee Kaydka', value: formatMoney(summary.stockPurchaseValue), secondary: formatUsd(summary.stockPurchaseValue), comparison: `${Number(summary.totalBoxesInStock || 0).toLocaleString()} kartoon / ${Number(summary.totalUnitsInStock || 0).toLocaleString()} xabbo` },
+      { label: 'Qiimaha La Filayo ee Iibka Kaydka', value: formatMoney(summary.stockExpectedSalesValue), secondary: formatUsd(summary.stockExpectedSalesValue), comparison: `Dayn harsan: ${formatDualMoney(summary.outstandingDebt)}` }
+    ];
+
+    const timelineTable = buildPrintTable(
+      [
+        { label: 'Muddada', render: (row) => escapeHtml(row.label || 'N/A') },
+        { label: 'Iib', render: (row) => escapeHtml(formatDualMoney(row.revenue)) },
+        { label: 'Kharash', render: (row) => escapeHtml(formatDualMoney(row.cost)) },
+        { label: 'Dakhli Saafi ah', render: (row) => escapeHtml(formatDualMoney(row.profit)) }
+      ],
+      timeline,
+      'Wax xog socod maaliyadeed ah lama helin muddadan.'
+    );
+
+    const salesLedgerTable = buildPrintTable(
+      [
+        { label: 'Biil', render: (row) => escapeHtml(row.invoiceNumber || 'N/A') },
+        { label: 'Macmiil', render: (row) => escapeHtml(row.customerName || 'Ma jiro') },
+        ...(showCashierColumn ? [{ label: 'Qasnaji', render: (row) => escapeHtml(row.cashierName || 'Ma jiro') }] : []),
+        { label: 'Nooca Lacag-bixinta', render: (row) => escapeHtml(row.paymentType || 'N/A') },
+        { label: 'Iib', render: (row) => escapeHtml(formatDualMoney(row.totalAmount)) },
+        { label: 'Kharash', render: (row) => escapeHtml(formatDualMoney(row.totalCost)) },
+        { label: 'Dakhli Saafi ah', render: (row) => escapeHtml(formatDualMoney(row.profit)) },
+        { label: 'Taariikh', render: (row) => escapeHtml(formatDateValue(row.createdAt, true)) }
+      ],
+      salesLedger,
+      'Iib la diiwaangeliyey muddadan ma jiro.'
+    );
+
+    const medicineSummaryTable = buildPrintTable(
+      [
+        { label: 'Daawo', render: (row) => `<strong>${escapeHtml(row.name || 'N/A')}</strong><div class="subcell">${escapeHtml(row.category || 'Guud')}</div>` },
+        { label: 'Biilal', render: (row) => escapeHtml(Number(row.invoiceCount || 0).toLocaleString()) },
+        { label: 'Kartoon La Iibiyey', render: (row) => escapeHtml(Number(row.boxesSold || 0).toLocaleString()) },
+        { label: 'Xabbo La Iibiyey', render: (row) => escapeHtml(Number(row.looseUnitsSold || 0).toLocaleString()) },
+        { label: 'Wadarta Xabbo', render: (row) => escapeHtml(Number(row.totalUnitsSold || 0).toLocaleString()) },
+        { label: 'Kartoon Harsan', render: (row) => escapeHtml(Number(row.currentBoxesInStock || 0).toLocaleString()) },
+        { label: 'Xabbo Harsan', render: (row) => escapeHtml(Number(row.currentUnitsInStock || 0).toLocaleString()) },
+        { label: 'Iib', render: (row) => escapeHtml(formatDualMoney(row.totalRevenue)) },
+        { label: 'Kharash', render: (row) => escapeHtml(formatDualMoney(row.totalCost)) },
+        { label: "Faa'iido/Khasaare", render: (row) => escapeHtml(formatDualMoney(row.netIncome)) },
+        { label: 'Celcelis Iib/Xabbo', render: (row) => escapeHtml(formatDualMoney(row.averageSellingPricePerUnit)) },
+        { label: 'Celcelis Kharash/Xabbo', render: (row) => escapeHtml(formatDualMoney(row.averageCostPerUnit)) }
+      ],
+      medicineSummaries,
+      'Daawooyin la iibiyey muddadan ma jiraan.'
+    );
+
+    const inventoryLedgerTable = buildPrintTable(
+      [
+        { label: 'Daawo', render: (row) => `<strong>${escapeHtml(row.name || 'N/A')}</strong><div class="subcell">${escapeHtml(row.category || 'Guud')}</div>` },
+        { label: 'Alaab-qeybiye', render: (row) => escapeHtml(row.supplierName || 'Ma jiro') },
+        { label: 'Qiimaha Iibsi/Kartoon', render: (row) => escapeHtml(formatDualMoney(row.purchasePricePerBox)) },
+        { label: 'Xabbo/Kartoon', render: (row) => escapeHtml(Number(row.unitsPerBox || 0).toLocaleString()) },
+        { label: 'Wadarta La Iibsaday', render: (row) => `${escapeHtml(Number(row.estimatedPurchasedBoxes || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }))} kartoon<div class="subcell">${escapeHtml(Number(row.estimatedPurchasedUnits || 0).toLocaleString())} xabbo</div>` },
+        { label: 'Lacagta Wax Iibsiga', render: (row) => escapeHtml(formatDualMoney(row.estimatedPurchasedValue)) },
+        { label: 'Kaydka Hadda Jira', render: (row) => `${escapeHtml(Number(row.boxesInStock || 0).toLocaleString())} kartoon<div class="subcell">${escapeHtml(Number(row.unitsInStock || 0).toLocaleString())} xabbo</div>` },
+        { label: 'Qiimaha Kaydka', render: (row) => escapeHtml(formatDualMoney(row.stockCostValue)) },
+        { label: 'Qiimaha Iibka ee La Filayo', render: (row) => escapeHtml(formatDualMoney(row.stockSaleValue)) },
+        { label: "Faa'iidada La Filayo", render: (row) => escapeHtml(formatDualMoney(row.stockProfitValue)) }
+      ],
+      inventoryLedger,
+      'Kayd daawo ma jiro.'
+    );
+
+    printWindow.document.open();
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${escapeHtml(title)} - Finance Report</title>
+          <style>
+            @page { size: A4 portrait; margin: 12mm; }
+            * { box-sizing: border-box; }
+            body { margin: 0; font-family: Arial, sans-serif; color: #0f172a; background: #e2e8f0; }
+            .sheet { width: 100%; max-width: 210mm; min-height: 297mm; margin: 0 auto; padding: 10mm; background: #ffffff; }
+            .header { border-bottom: 3px solid #0f766e; padding-bottom: 10px; margin-bottom: 16px; }
+            .title { margin: 0; font-size: 26px; font-weight: 800; }
+            .subtitle { margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: #475569; }
+            .meta { margin-top: 8px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; font-size: 11px; }
+            .summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+            .summary-card { border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px; background: #f8fafc; }
+            .summary-card h3 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; color: #475569; }
+            .summary-value { font-size: 16px; font-weight: 700; margin: 0; }
+            .summary-secondary, .summary-comparison, .subcell { font-size: 10px; color: #64748b; margin-top: 4px; }
+            .section { margin-top: 18px; }
+            .page-break { page-break-before: always; }
+            .section h2 { margin: 0 0 8px; font-size: 16px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; }
+            .section p { margin: 5px 0; font-size: 11px; line-height: 1.5; }
+            table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+            th, td { border: 1px solid #cbd5e1; padding: 6px 7px; vertical-align: top; word-break: break-word; font-size: 10px; text-align: left; }
+            th { background: #e2e8f0; font-size: 10px; text-transform: uppercase; }
+            .empty-row { border: 1px dashed #cbd5e1; border-radius: 10px; padding: 12px; font-size: 11px; color: #64748b; background: #f8fafc; }
+            @media print { body { background: #ffffff; } .sheet { max-width: none; margin: 0; padding: 0; } }
+          </style>
+        </head>
+        <body>
+          <div class="sheet">
+            <div class="header">
+              <h1 class="title">${escapeHtml(title)}</h1>
+              <p class="subtitle">${escapeHtml(subtitle)}</p>
+              <div class="meta">
+                <div><strong>Muddada:</strong> ${escapeHtml(hasDateRange ? 'Xulashada taariikhda' : (periodRange.currentLabel || 'N/A'))}</div>
+                <div><strong>La sameeyey:</strong> ${escapeHtml(formatDateValue(new Date(), true))}</div>
+                <div><strong>Laga bilaabo:</strong> ${escapeHtml(formatDateValue(periodRange.currentStart))}</div>
+                <div><strong>Ilaa:</strong> ${escapeHtml(formatDateValue(periodRange.currentEnd))}</div>
+              </div>
+            </div>
+
+            <div class="summary-grid">
+              ${summaryCards.map((card) => `
+                <div class="summary-card">
+                  <h3>${escapeHtml(card.label)}</h3>
+                  <p class="summary-value">${escapeHtml(card.value)}</p>
+                  ${card.secondary ? `<div class="summary-secondary">${escapeHtml(card.secondary)}</div>` : ''}
+                  ${card.comparison ? `<div class="summary-comparison">${escapeHtml(card.comparison)}</div>` : ''}
+                </div>
+              `).join('')}
+            </div>
+
+            <div class="section">
+              <h2>Habka Xisaabta</h2>
+              <p>${escapeHtml(accountingNotes.medicineCostBasis || 'Xog hab xisaabeed lama helin.')}</p>
+              ${accountingNotes.inventoryPurchaseBasis ? `<p>${escapeHtml(accountingNotes.inventoryPurchaseBasis)}</p>` : ''}
+              <p>Dhammaan xogtaada waxa ay ku kaydsan tahay SOS, halka USD lagu muujinayo si akhrisku u sahlanaado.</p>
+            </div>
+
+            <div class="section">
+              <h2>Socodka Maaliyadda</h2>
+              ${timelineTable}
+            </div>
+
+            <div class="section page-break">
+              <h2>Diiwaanka Iibka</h2>
+              ${salesLedgerTable}
+            </div>
+
+            <div class="section page-break">
+              <h2>Warbixinta Daawooyinka</h2>
+              ${medicineSummaryTable}
+            </div>
+
+            <div class="section page-break">
+              <h2>Xisaabta Kaydka iyo Qiimaha Wax Iibsiga</h2>
+              ${inventoryLedgerTable}
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 200);
+  };
+
   return (
     <section className="page-section">
       <div className="section-header">
@@ -204,6 +411,10 @@ function CashierFinance({
             <button type="button" className="btn-primary" onClick={() => loadFinance(period, true)} disabled={refreshing}>
               <RefreshCcw size={16} />
               {refreshing ? 'Waa la cusboonaysiinayaa...' : 'Cusboonaysii'}
+            </button>
+            <button type="button" className="btn-secondary" onClick={printFinanceReport} disabled={loading || !report}>
+              <Printer size={16} />
+              Daabac A4
             </button>
             <button
               type="button"

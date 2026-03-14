@@ -10,9 +10,15 @@ const Debt = require('../models/Debt');
 const Patient = require('../models/Patient');
 const LabRequest = require('../models/LabRequest');
 const Prescription = require('../models/Prescription');
+const {
+    cleanString,
+    normalizeEmail,
+    isValidEmail,
+    assertStrongPassword,
+    generateTemporaryPassword
+} = require('../utils/security');
 
 const STAFF_ROLES = ['Cashier', 'Doctor', 'Lab Technician'];
-const DEFAULT_PASSWORD = '1234';
 const REPORT_PERIODS = new Set(['daily', 'weekly', 'monthly', 'yearly']);
 const SOS_PER_USD = Number(process.env.SOS_PER_USD || 57000);
 
@@ -1274,7 +1280,23 @@ router.get('/staff', protect, authorize('Admin'), async (req, res) => {
 // @desc    Create New Staff Member
 router.post('/staff', protect, authorize('Admin'), async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        const name = cleanString(req.body?.name, { maxLength: 80 });
+        const email = normalizeEmail(req.body?.email);
+        const role = cleanString(req.body?.role, { maxLength: 40 });
+        const providedPassword = cleanString(req.body?.password, {
+            trim: false,
+            maxLength: 128,
+            allowEmpty: true
+        });
+
+        if (!name) {
+            return res.status(400).json({ message: 'Name is required' });
+        }
+
+        if (!isValidEmail(email)) {
+            return res.status(400).json({ message: 'A valid email is required' });
+        }
+
         if (!STAFF_ROLES.includes(role)) {
             return res.status(400).json({ message: 'Invalid staff role' });
         }
@@ -1284,16 +1306,24 @@ router.post('/staff', protect, authorize('Admin'), async (req, res) => {
             return res.status(400).json({ message: 'Email already exists' });
         }
 
+        const password = providedPassword
+            ? assertStrongPassword(providedPassword, 'Staff password')
+            : generateTemporaryPassword();
         const user = await User.create({
             name,
             email,
-            password: password || DEFAULT_PASSWORD,
+            password,
             role,
-            status: 'Active'
+            status: 'Active',
+            mustChangePassword: true
         });
 
         const userResponse = user.toObject();
         delete userResponse.password;
+
+        if (!providedPassword) {
+            userResponse.temporaryPassword = password;
+        }
 
         res.status(201).json(userResponse);
     } catch (error) {
@@ -1304,7 +1334,9 @@ router.post('/staff', protect, authorize('Admin'), async (req, res) => {
 // @desc    Update Staff Member
 router.patch('/staff/:id', protect, authorize('Admin'), async (req, res) => {
     try {
-        const { name, email, status } = req.body;
+        const name = cleanString(req.body?.name, { maxLength: 80, allowEmpty: true });
+        const email = normalizeEmail(req.body?.email);
+        const status = cleanString(req.body?.status, { maxLength: 20, allowEmpty: true });
         const user = await User.findById(req.params.id);
 
         if (!user) {
@@ -1312,7 +1344,18 @@ router.patch('/staff/:id', protect, authorize('Admin'), async (req, res) => {
         }
 
         if (name) user.name = name;
-        if (email) user.email = email;
+        if (email && email !== user.email) {
+            if (!isValidEmail(email)) {
+                return res.status(400).json({ message: 'A valid email is required' });
+            }
+
+            const existingUser = await User.findOne({ email, _id: { $ne: user._id } });
+            if (existingUser) {
+                return res.status(400).json({ message: 'Email already exists' });
+            }
+
+            user.email = email;
+        }
         if (status) user.status = status;
 
         await user.save();
@@ -1329,7 +1372,11 @@ router.patch('/staff/:id', protect, authorize('Admin'), async (req, res) => {
 // @desc    Reset Staff Password
 router.patch('/staff/:id/reset-password', protect, authorize('Admin'), async (req, res) => {
     try {
-        const { newPassword } = req.body || {};
+        const newPassword = cleanString(req.body?.newPassword, {
+            trim: false,
+            maxLength: 128,
+            allowEmpty: true
+        });
         const user = await User.findById(req.params.id);
 
         if (!user) {
@@ -1340,10 +1387,19 @@ router.patch('/staff/:id/reset-password', protect, authorize('Admin'), async (re
             return res.status(403).json({ message: 'Cannot reset admin password from this action' });
         }
 
-        user.password = newPassword || DEFAULT_PASSWORD;
+        const nextPassword = newPassword
+            ? assertStrongPassword(newPassword, 'New password')
+            : generateTemporaryPassword();
+
+        user.password = nextPassword;
+        user.mustChangePassword = true;
         await user.save();
 
-        res.json({ message: `Password reset successfully (${newPassword ? 'custom' : 'default 1234'})` });
+        res.json({
+            message: 'Password reset successfully',
+            temporaryPassword: newPassword ? null : nextPassword,
+            mustChangePassword: true
+        });
     } catch (error) {
         res.status(400).json({ message: error.message });
     }

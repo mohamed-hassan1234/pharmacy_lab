@@ -23,6 +23,8 @@ const DoctorDashboard = () => {
         };
     };
 
+    const getRequestedInputText = (value) => String(value || '').trim();
+
     useEffect(() => {
         fetchDashboard();
         fetchPatients();
@@ -62,10 +64,12 @@ const DoctorDashboard = () => {
     };
 
     const handleCreateLabRequest = async () => {
-        const requestedTests = parseRequestedTests(requestedTestInput);
-        if (!Object.values(requestedTests).some(v => v)) {
-            return alert('Fadlan qor ugu yaraan hal magac baaritaan oo la taageerayo, tusaale ahaan: HB, WBC, blood sugar, HIV, urine, stool.');
+        const cleanedRequestedTestInput = getRequestedInputText(requestedTestInput);
+        if (!cleanedRequestedTestInput) {
+            return alert('Fadlan qor baaritaanka ama faahfaahinta loo dirayo shaybaarka.');
         }
+
+        const requestedTests = parseRequestedTests(cleanedRequestedTestInput);
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
             await axios.post('/api/lab/requests', {
@@ -75,7 +79,7 @@ const DoctorDashboard = () => {
                 age: showLabRequest.age,
                 sex: showLabRequest.sex,
                 requestedTests,
-                requestedTestInput: requestedTestInput.trim()
+                requestedTestInput: cleanedRequestedTestInput
             }, config);
 
             setShowLabRequest(null);
@@ -221,12 +225,15 @@ const DoctorDashboard = () => {
                             <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Qor Baaritaannada La Codsanayo:</p>
                             <textarea
                                 className="w-full min-h-[180px] rounded-[2rem] border-2 border-slate-100 bg-slate-50 p-6 font-bold text-slate-800 outline-none focus:border-blue-300 focus:bg-white"
-                                placeholder="Halkan ku qor baaritaannada. Tusaale: HB, WBC, blood sugar, creatinine, HIV, urine protein..."
+                                placeholder="Halkan ku qor baaritaanka ama faahfaahinta aad rabto. Tusaale: HB, WBC, blood sugar, creatinine, HIV, urine protein ama qoraal kale oo faahfaahsan."
                                 value={requestedTestInput}
                                 onChange={(e) => setRequestedTestInput(e.target.value)}
                             />
                             <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                                <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-2">Erayada baaritaanka la taageerayo</p>
+                                <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-2">Erayada si toos ah loo aqoonsado</p>
+                                <p className="text-sm font-bold text-blue-900 mb-3">
+                                    Waxaad qori kartaa baaritaan kasta ama sharaxaad kasta. Liiskan hoose waxa uu nidaamka ka caawinayaa keliya inuu si toos ah u aqoonsado qaybaha caadiga ah.
+                                </p>
                                 <p className="text-sm font-bold text-blue-900">
                                     Hematology: HB, WBC, RBC, MCV, MCH, Platelets
                                 </p>

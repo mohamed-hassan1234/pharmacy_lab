@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const { protect, authorize } = require('../middleware/auth');
 const Patient = require('../models/Patient');
 const LabRequest = require('../models/LabRequest');
+const { cleanString, escapeRegex } = require('../utils/security');
 
 // @desc    Register New Patient (Staff/Cashier)
 router.post('/patients', protect, authorize('Cashier', 'Admin'), async (req, res) => {
@@ -62,11 +63,16 @@ router.get('/patients', protect, async (req, res) => {
 // @desc    Search Patients
 router.get('/patients/search', protect, async (req, res) => {
     try {
-        const { query } = req.query;
+        const query = cleanString(req.query?.query, { maxLength: 80 });
+        if (!query) {
+            return res.json([]);
+        }
+
+        const escapedQuery = escapeRegex(query);
         const patients = await Patient.find({
             $or: [
-                { patientId: { $regex: query, $options: 'i' } },
-                { name: { $regex: query, $options: 'i' } }
+                { patientId: { $regex: escapedQuery, $options: 'i' } },
+                { name: { $regex: escapedQuery, $options: 'i' } }
             ],
             status: 'Active'
         }).limit(20);

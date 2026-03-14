@@ -8,6 +8,16 @@ const LabDashboard = () => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const getRequestedTestEntries = (requestedTests = {}) => [
+        { key: 'hematology', label: 'Dhiig', className: 'bg-blue-100 text-blue-600' },
+        { key: 'biochemistry', label: 'Kiimiko', className: 'bg-emerald-100 text-emerald-600' },
+        { key: 'serology', label: 'Sero', className: 'bg-purple-100 text-purple-600' },
+        { key: 'urinalysis', label: 'Kaadi', className: 'bg-orange-100 text-orange-600' },
+        { key: 'stoolExamination', label: 'Saxaro', className: 'bg-red-100 text-red-600' }
+    ].filter((entry) => requestedTests?.[entry.key]);
+
+    const getRequestedTestText = (request) => String(request?.requestedTestInput || '').trim();
+
     useEffect(() => {
         fetchDashboard();
     }, []);
@@ -113,6 +123,12 @@ const LabDashboard = () => {
                             {stats?.recentRequests?.map((req) => (
                                 <tr key={req._id} className="cursor-pointer"
                                     onClick={() => navigate(`/lab/tests/${req._id}`)}>
+                                    {(() => {
+                                        const requestedTestEntries = getRequestedTestEntries(req.requestedTests);
+                                        const requestedTestText = getRequestedTestText(req);
+
+                                        return (
+                                            <>
                                     <td className="px-8 py-5">
                                         <span className="font-black text-purple-600 text-sm">{req.ticketNumber}</span>
                                     </td>
@@ -125,12 +141,15 @@ const LabDashboard = () => {
                                     </td>
                                     <td className="px-8 py-5">
                                         <div className="flex flex-wrap gap-1">
-                                            {req.requestedTests.hematology && <span className="text-[9px] font-black bg-blue-100 text-blue-600 px-2 py-0.5 rounded uppercase">Dhiig</span>}
-                                            {req.requestedTests.biochemistry && <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded uppercase">Kiimiko</span>}
-                                            {req.requestedTests.serology && <span className="text-[9px] font-black bg-purple-100 text-purple-600 px-2 py-0.5 rounded uppercase">Sero</span>}
-                                            {req.requestedTests.urinalysis && <span className="text-[9px] font-black bg-orange-100 text-orange-600 px-2 py-0.5 rounded uppercase">Kaadi</span>}
-                                            {req.requestedTests.stoolExamination && <span className="text-[9px] font-black bg-red-100 text-red-600 px-2 py-0.5 rounded uppercase">Saxaro</span>}
+                                            {requestedTestEntries.map((entry) => (
+                                                <span key={entry.key} className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${entry.className}`}>
+                                                    {entry.label}
+                                                </span>
+                                            ))}
                                         </div>
+                                        {requestedTestText ? (
+                                            <p className="mt-2 text-xs font-bold text-slate-500 whitespace-pre-wrap">{requestedTestText}</p>
+                                        ) : null}
                                     </td>
                                     <td className="px-8 py-5">
                                         <span className={`px-3 py-1 rounded-full text-xs font-black uppercase ${req.status === 'Completed' ? 'bg-emerald-100 text-emerald-600' :
@@ -143,6 +162,9 @@ const LabDashboard = () => {
                                     <td className="px-8 py-5">
                                         <p className="text-xs font-bold text-slate-400">{new Date(req.createdAt).toLocaleDateString()}</p>
                                     </td>
+                                            </>
+                                        );
+                                    })()}
                                 </tr>
                             ))}
                         </tbody>

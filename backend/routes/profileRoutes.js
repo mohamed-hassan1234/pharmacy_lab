@@ -2,6 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const User = require('../models/User');
+const {
+    cleanString,
+    normalizeEmail,
+    isValidEmail,
+    assertStrongPassword
+} = require('../utils/security');
 
 // @desc    Get Current User Profile
 router.get('/me', protect, async (req, res) => {
@@ -16,7 +22,8 @@ router.get('/me', protect, async (req, res) => {
 // @desc    Update Profile (Name, Email)
 router.patch('/me', protect, async (req, res) => {
     try {
-        const { name, email } = req.body;
+        const name = cleanString(req.body?.name, { maxLength: 80, allowEmpty: true });
+        const email = normalizeEmail(req.body?.email);
         const user = await User.findById(req.user._id);
 
         if (!user) {
@@ -25,6 +32,10 @@ router.patch('/me', protect, async (req, res) => {
 
         // Check if email is already taken by another user
         if (email && email !== user.email) {
+            if (!isValidEmail(email)) {
+                return res.status(400).json({ message: 'Please provide a valid email address' });
+            }
+
             const existingUser = await User.findOne({ email });
             if (existingUser) {
                 return res.status(400).json({ message: 'Email already in use' });
@@ -48,11 +59,22 @@ router.patch('/me', protect, async (req, res) => {
 // @desc    Change Password
 router.patch('/me/change-password', protect, async (req, res) => {
     try {
-        const { currentPassword, newPassword } = req.body;
+        const currentPassword = cleanString(req.body?.currentPassword, {
+            trim: false,
+            maxLength: 128
+        });
+        const newPassword = cleanString(req.body?.newPassword, {
+            trim: false,
+            maxLength: 128
+        });
         const user = await User.findById(req.user._id);
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ message: 'Current password and new password are required' });
         }
 
         // Verify current password
@@ -61,7 +83,13 @@ router.patch('/me/change-password', protect, async (req, res) => {
             return res.status(400).json({ message: 'Current password is incorrect' });
         }
 
+        if (currentPassword === newPassword) {
+            return res.status(400).json({ message: 'New password must be different from the current password' });
+        }
+
+        assertStrongPassword(newPassword, 'New password');
         user.password = newPassword;
+        user.mustChangePassword = false;
         await user.save();
 
         res.json({ message: 'Password changed successfully' });
@@ -73,11 +101,18 @@ router.patch('/me/change-password', protect, async (req, res) => {
 // @desc    Delete Own Account
 router.delete('/me', protect, async (req, res) => {
     try {
-        const { password } = req.body;
+        const password = cleanString(req.body?.password, {
+            trim: false,
+            maxLength: 128
+        });
         const user = await User.findById(req.user._id);
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (!password) {
+            return res.status(400).json({ message: 'Password is required' });
         }
 
         // Verify password before deletion

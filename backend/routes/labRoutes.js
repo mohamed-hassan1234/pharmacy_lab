@@ -3,14 +3,25 @@ const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
 const LabRequest = require('../models/LabRequest');
 const Patient = require('../models/Patient');
+const { cleanString, escapeRegex } = require('../utils/security');
 
 
 // @desc    Create Lab Request (Doctor Only)
 router.post('/requests', protect, authorize('Doctor', 'Admin'), async (req, res) => {
     try {
         const { patient, patientId, patientName, age, sex, requestedTests, requestedTestInput } = req.body;
+        const normalizedRequestedTestInput = String(requestedTestInput || '').trim();
+        const normalizedRequestedTests = {
+            hematology: Boolean(requestedTests?.hematology),
+            biochemistry: Boolean(requestedTests?.biochemistry),
+            serology: Boolean(requestedTests?.serology),
+            urinalysis: Boolean(requestedTests?.urinalysis),
+            stoolExamination: Boolean(requestedTests?.stoolExamination)
+        };
 
-
+        if (!normalizedRequestedTestInput) {
+            return res.status(400).json({ message: 'Requested test details are required' });
+        }
 
         // Generate ticket number
         const count = await LabRequest.countDocuments();
@@ -25,8 +36,8 @@ router.post('/requests', protect, authorize('Doctor', 'Admin'), async (req, res)
             sex,
             doctorId: req.user._id,
             doctorName: req.user.name,
-            requestedTests,
-            requestedTestInput,
+            requestedTests: normalizedRequestedTests,
+            requestedTestInput: normalizedRequestedTestInput,
             status: 'Awaiting Payment'
         });
 
@@ -114,13 +125,18 @@ router.get('/requests/:id', protect, authorize('Lab Technician', 'Doctor', 'Cash
 // @desc    Search Lab Request by Ticket Number or Patient Name
 router.get('/search', protect, authorize('Lab Technician', 'Doctor', 'Cashier', 'Admin'), async (req, res) => {
     try {
-        const { query } = req.query;
+        const query = cleanString(req.query?.query, { maxLength: 80 });
+        if (!query) {
+            return res.json([]);
+        }
+
+        const escapedQuery = escapeRegex(query);
 
         const requests = await LabRequest.find({
             $or: [
-                { ticketNumber: { $regex: query, $options: 'i' } },
-                { patientName: { $regex: query, $options: 'i' } },
-                { patientId: { $regex: query, $options: 'i' } }
+                { ticketNumber: { $regex: escapedQuery, $options: 'i' } },
+                { patientName: { $regex: escapedQuery, $options: 'i' } },
+                { patientId: { $regex: escapedQuery, $options: 'i' } }
             ]
         })
             .populate('doctorId', 'name')
