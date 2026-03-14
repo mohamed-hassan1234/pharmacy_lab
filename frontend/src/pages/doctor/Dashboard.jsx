@@ -37,7 +37,7 @@ const DoctorDashboard = () => {
     const fetchDashboard = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://localhost:5010/api/doctor/dashboard', config);
+            const { data } = await axios.get('/api/doctor/dashboard', config);
             setStats(data);
         } catch (err) { console.error(err); }
     };
@@ -45,7 +45,7 @@ const DoctorDashboard = () => {
     const fetchPatients = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://localhost:5010/api/doctor/patients', config);
+            const { data } = await axios.get('/api/doctor/patients', config);
             setPatients(data);
         } catch (err) { console.error(err); }
     };
@@ -56,7 +56,7 @@ const DoctorDashboard = () => {
             if (!userStr) return;
             const userObj = JSON.parse(userStr);
             const config = { headers: { Authorization: `Bearer ${userObj.token}` } };
-            const { data } = await axios.get('http://localhost:5010/api/doctor/lab-reviews', config);
+            const { data } = await axios.get('/api/doctor/lab-reviews', config);
             setLabRequestsAwaiting(Array.isArray(data) ? data : []);
         } catch (err) { console.error(err); }
     };
@@ -68,7 +68,7 @@ const DoctorDashboard = () => {
         }
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.post('http://localhost:5010/api/lab/requests', {
+            await axios.post('/api/lab/requests', {
                 patient: showLabRequest._id,
                 patientId: showLabRequest.patientId,
                 patientName: showLabRequest.name,
@@ -189,7 +189,7 @@ const DoctorDashboard = () => {
                                         <button
                                             onClick={async () => {
                                                 const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-                                                await axios.patch(`http://localhost:5010/api/doctor/patients/${patient._id}/status`, { visitStatus: 'In Consultation' }, config);
+                                                await axios.patch(`/api/doctor/patients/${patient._id}/status`, { visitStatus: 'In Consultation' }, config);
                                                 setRequestedTestInput('');
                                                 setShowLabRequest(patient);
                                                 fetchPatients();

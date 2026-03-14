@@ -21,7 +21,7 @@ const Profile = () => {
     const fetchProfile = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://localhost:5010/api/profile/me', config);
+            const { data } = await axios.get('/api/profile/me', config);
             setUser(data);
             setFormData({ name: data.name, email: data.email });
         } catch (err) { console.error(err); }
@@ -32,7 +32,7 @@ const Profile = () => {
         e.preventDefault();
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch('http://localhost:5010/api/profile/me', formData, config);
+            await axios.patch('/api/profile/me', formData, config);
             setEditMode(false);
             fetchProfile();
             alert('Akoonka si guul leh ayaa loo cusboonaysiiyey!');
@@ -46,7 +46,7 @@ const Profile = () => {
         }
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch('http://localhost:5010/api/profile/me/change-password', {
+            await axios.patch('/api/profile/me/change-password', {
                 currentPassword: passwordData.currentPassword,
                 newPassword: passwordData.newPassword
             }, config);
@@ -61,7 +61,7 @@ const Profile = () => {
         if (!confirm('Ma hubtaa? Ficilkan dib looma celin karo!')) return;
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.delete('http://localhost:5010/api/profile/me', { data: { password: deletePassword }, ...config });
+            await axios.delete('/api/profile/me', { data: { password: deletePassword }, ...config });
             localStorage.removeItem('clinic_user');
             navigate('/login');
         } catch (err) { alert(err.response?.data?.message || 'Cilad ayaa ka dhacday tirtirka koontada'); }

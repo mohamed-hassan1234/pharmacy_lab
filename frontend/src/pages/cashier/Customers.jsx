@@ -16,7 +16,7 @@ const CustomerManagement = () => {
     const fetchCustomers = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://localhost:5010/api/cashier/customers', config);
+            const { data } = await axios.get('/api/cashier/customers', config);
             setCustomers(data);
         } catch (err) { console.error(err); }
     };
@@ -26,7 +26,7 @@ const CustomerManagement = () => {
         setLoading(true);
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.post('http://localhost:5010/api/cashier/customers', formData, config);
+            await axios.post('/api/cashier/customers', formData, config);
             setFormData({ name: '', phone: '' });
             fetchCustomers();
         } catch (err) { alert(err.response?.data?.message || 'Way fashilantay.'); }

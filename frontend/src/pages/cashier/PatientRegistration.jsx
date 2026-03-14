@@ -21,7 +21,7 @@ const PatientRegistration = () => {
             const config = {
                 headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` }
             };
-            const { data } = await axios.post('http://localhost:5010/api/doctor/patients', formData, config);
+            const { data } = await axios.post('/api/doctor/patients', formData, config);
             setSuccess(data);
             setFormData({ name: '', age: '', sex: 'Male', phone: '', address: '' });
 
@@ -143,7 +143,7 @@ const PatientRegistration = () => {
                                 onClick={async () => {
                                     try {
                                         const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-                                        await axios.patch(`http://localhost:5010/api/doctor/patients/${success._id}/status`, { visitStatus: 'Waiting for Doctor' }, config);
+                                        await axios.patch(`/api/doctor/patients/${success._id}/status`, { visitStatus: 'Waiting for Doctor' }, config);
                                         alert('Patient sent to Doctor queue!');
                                         setSuccess(null);
                                     } catch (err) { alert('Error sending to doctor'); }

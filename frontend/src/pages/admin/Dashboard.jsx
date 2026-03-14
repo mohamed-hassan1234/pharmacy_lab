@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Shield, UserPlus, Users, DollarSign, TrendingUp, FlaskConical, Key, UserX, Trash2, Activity } from 'lucide-react';
 import { convertSosToUsd } from '../../utils/currency';
 
-const API_BASE_URL = 'http://localhost:5010';
+const API_BASE_URL = '';
 const DEFAULT_PASSWORD = '1234';
 
 const toDateTime = (value) => (value ? new Date(value).toLocaleString() : '-');
@@ -118,6 +118,7 @@ const AdminDashboard = () => {
 {/* waa dhahay  */}
             <div className="metrics-grid">
                 <div className="metric-card border-l-4 border-blue-500">
+               
                     <DollarSign className="text-blue-600" size={20} />
                     <p className="metric-label mt-2">Dakhliga</p>
                     <h3 className="metric-value">{stats?.financial?.totalRevenue?.toLocaleString() || 0} SOS</h3>

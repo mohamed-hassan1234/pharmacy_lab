@@ -42,7 +42,7 @@ const MedicineRegistration = () => {
 
     const fetchSuppliers = async () => {
         try {
-            const { data } = await axios.get('http://localhost:5010/api/inventory/suppliers', authConfig());
+            const { data } = await axios.get('/api/inventory/suppliers', authConfig());
             setSuppliers(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error(err);
@@ -51,7 +51,7 @@ const MedicineRegistration = () => {
 
     const fetchMedicines = async () => {
         try {
-            const { data } = await axios.get('http://localhost:5010/api/inventory/medicines', authConfig());
+            const { data } = await axios.get('/api/inventory/medicines', authConfig());
             setMedicines(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error(err);
@@ -94,9 +94,9 @@ const MedicineRegistration = () => {
 
         try {
             if (editingMedicine) {
-                await axios.patch(`http://localhost:5010/api/inventory/medicines/${editingMedicine._id}`, formData, authConfig());
+                await axios.patch(`/api/inventory/medicines/${editingMedicine._id}`, formData, authConfig());
             } else {
-                await axios.post('http://localhost:5010/api/inventory/medicines', formData, authConfig());
+                await axios.post('/api/inventory/medicines', formData, authConfig());
             }
 
             resetForm();
@@ -132,7 +132,7 @@ const MedicineRegistration = () => {
         if (!window.confirm(`${medicine.name} ma tirtiraysaa?`)) return;
 
         try {
-            await axios.delete(`http://localhost:5010/api/inventory/medicines/${medicine._id}`, authConfig());
+            await axios.delete(`/api/inventory/medicines/${medicine._id}`, authConfig());
             if (editingMedicine?._id === medicine._id) {
                 resetForm();
             }

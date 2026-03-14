@@ -11,6 +11,7 @@ import {
     Package,
     ShoppingCart,
     Stethoscope,
+    TrendingUp,
     Truck,
     UserPlus,
     Users,
@@ -39,6 +40,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             {
                 label: 'Maamul',
                 items: [
+                    { name: 'Maaliyad', icon: TrendingUp, path: '/admin/finance' },
                     { name: 'Warbixino', icon: FileBarChart, path: '/admin/reports' }
                 ]
             }
@@ -59,6 +61,8 @@ const Sidebar = ({ isOpen, onClose }) => {
                     { name: 'Daawooyin', icon: Package, path: '/cashier/medicines' },
                     { name: 'Macaamiil', icon: Users, path: '/cashier/customers' },
                     { name: 'Alaab-qeybiyeyaasha', icon: Truck, path: '/cashier/suppliers' },
+                    { name: 'Dayn', icon: CreditCard, path: '/cashier/debts' },
+                    { name: 'Maaliyad', icon: TrendingUp, path: '/cashier/finance' },
                     { name: 'Warbixino', icon: FileBarChart, path: '/cashier/reports' }
                 ]
             }

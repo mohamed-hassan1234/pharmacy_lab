@@ -103,7 +103,7 @@ const DoctorConsultation = () => {
             const userObj = JSON.parse(userStr);
             const config = { headers: { Authorization: `Bearer ${userObj.token}` } };
 
-            const { data } = await axios.get('http://localhost:5010/api/lab/requests', config);
+            const { data } = await axios.get('/api/lab/requests', config);
             setLabRequests(Array.isArray(data) ? data : []);
         } catch (err) { console.error(err); }
     };
@@ -112,7 +112,7 @@ const DoctorConsultation = () => {
     const handleViewResults = async (request) => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get(`http://localhost:5010/api/lab/requests/${request._id}`, config);
+            const { data } = await axios.get(`/api/lab/requests/${request._id}`, config);
             setSelectedRequest(data);
             setConclusion(data.doctorConclusion || '');
             setShowResults(true);
@@ -130,7 +130,7 @@ const DoctorConsultation = () => {
     const fetchAvailableMedicines = async (query = '') => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get(`http://localhost:5010/api/doctor/medicines/search?query=${encodeURIComponent(query)}&limit=100`, config);
+            const { data } = await axios.get(`/api/doctor/medicines/search?query=${encodeURIComponent(query)}&limit=100`, config);
             setFoundMedicines(Array.isArray(data) ? data : []);
         } catch (err) { console.error(err); }
     };
@@ -217,7 +217,7 @@ const DoctorConsultation = () => {
 
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`http://localhost:5010/api/lab/requests/${selectedRequest._id}/send-to-cashier`, {
+            await axios.patch(`/api/lab/requests/${selectedRequest._id}/send-to-cashier`, {
                 physicalExamination: physicalExam,
                 conclusion: diagnosis,
                 medicines: medicinesPayload
@@ -242,16 +242,16 @@ const DoctorConsultation = () => {
                 medicines: medicinesPayload
             };
 
-            const { data: createdPrescription } = await axios.post('http://localhost:5010/api/doctor/prescriptions', payload, config);
+            const { data: createdPrescription } = await axios.post('/api/doctor/prescriptions', payload, config);
 
-            await axios.patch(`http://localhost:5010/api/lab/requests/${selectedRequest._id}/finalize`, {
+            await axios.patch(`/api/lab/requests/${selectedRequest._id}/finalize`, {
                 conclusion: diagnosis,
                 physicalExamination: physicalExam,
                 medicines: medicinesPayload,
                 prescriptionId: createdPrescription?._id
             }, config);
 
-            await axios.patch(`http://localhost:5010/api/doctor/patients/${selectedRequest.patient?._id || selectedRequest.patient}/status`, { visitStatus: 'Outpatient' }, config);
+            await axios.patch(`/api/doctor/patients/${selectedRequest.patient?._id || selectedRequest.patient}/status`, { visitStatus: 'Outpatient' }, config);
 
             if (window.confirm('Go\'aanka dambe waa la keydiyey bukaankana waxaa loo diray qasnaji/farmashiye. Ma doonaysaa in hadda la daabaco?')) {
                 handlePrintResults({
@@ -271,7 +271,7 @@ const DoctorConsultation = () => {
     const handlePrintResults = async (request) => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`http://localhost:5010/api/lab/requests/${request._id}/print`, {}, config);
+            await axios.patch(`/api/lab/requests/${request._id}/print`, {}, config);
 
             const printWindow = window.open('', '', 'width=800,height=1000');
 

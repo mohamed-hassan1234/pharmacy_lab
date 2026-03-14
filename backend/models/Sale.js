@@ -13,8 +13,15 @@ const saleSchema = new mongoose.Schema({
         name: { type: String },
         sellType: { type: String, enum: ['BOX', 'UNIT'], required: true },
         quantity: { type: Number, required: true },
+        totalUnitsSold: { type: Number, default: 0 },
         unitPrice: { type: Number, required: true }, // SOS
-        total: { type: Number, required: true }      // SOS
+        total: { type: Number, required: true },     // SOS
+        lineCost: { type: Number, default: 0 },      // SOS
+        unitsPerBoxSnapshot: { type: Number, default: 0 },
+        purchasePricePerUnitSnapshot: { type: Number, default: 0 },
+        purchasePricePerBoxSnapshot: { type: Number, default: 0 },
+        sellingPricePerUnitSnapshot: { type: Number, default: 0 },
+        sellingPricePerBoxSnapshot: { type: Number, default: 0 }
     }],
     totalAmount: { type: Number, required: true }, // SOS
     totalCost: { type: Number, required: true },   // SOS (Based on purchase price)

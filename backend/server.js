@@ -6,6 +6,19 @@ const morgan = require('morgan');
 const connectDB = require('./config/db.js');
 
 const app = express();
+const allowedOrigins = (process.env.CORS_ORIGINS || [
+  'http://localhost:5010',
+  'http://127.0.0.1:5010',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://lafoole.somsoftsystems.com',
+  'https://www.lafoole.somsoftsystems.com',
+  'https://saalim.somzaki.com',
+  'https://www.saalim.somzaki.com'
+].join(','))
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 // Connect to Database
 connectDB();
@@ -14,15 +27,15 @@ connectDB();
 app.use(express.json());
 app.use(
   cors({
-    origin: [
-      "http://localhost:5010",
-      "http://127.0.0.1:5010",
-      "http://localhost:5173",
-      "http://127.0.0.1:5173",
-      "https://lafoole.somsoftsystems.com",
-      "https://www.lafoole.somsoftsystems.com"
-    ],
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error('Not allowed by CORS'));
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true
   })
 );

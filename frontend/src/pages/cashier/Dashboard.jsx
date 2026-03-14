@@ -35,7 +35,7 @@ const CashierDashboard = () => {
     const fetchDashboard = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://localhost:5010/api/cashier/dashboard', config);
+            const { data } = await axios.get('/api/cashier/dashboard', config);
             setStats(data);
         } catch (err) {
             console.error(err);
@@ -47,7 +47,7 @@ const CashierDashboard = () => {
     const fetchDebts = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://localhost:5010/api/cashier/debts', config);
+            const { data } = await axios.get('/api/cashier/debts', config);
             setDebts(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error(err);

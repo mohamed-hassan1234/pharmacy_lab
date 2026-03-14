@@ -16,7 +16,7 @@ const LabPayments = () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
             // Fetch all requests and filter for 'Awaiting Payment'
-            const { data } = await axios.get('http://localhost:5010/api/lab/requests', config);
+            const { data } = await axios.get('/api/lab/requests', config);
             setRequests(data.filter(r => r.status === 'Awaiting Payment'));
         } catch (err) { console.error(err); }
     };
@@ -25,7 +25,7 @@ const LabPayments = () => {
         if (!amount || isNaN(amount)) return alert('Please enter a valid amount');
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`http://localhost:5010/api/lab/requests/${selectedRequest._id}/pay`, { amount: Number(amount) }, config);
+            await axios.patch(`/api/lab/requests/${selectedRequest._id}/pay`, { amount: Number(amount) }, config);
             alert('Payment confirmed successfully!');
             setSelectedRequest(null);
             setAmount('');

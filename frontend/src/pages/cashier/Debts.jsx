@@ -17,7 +17,7 @@ const Debts = () => {
     const fetchDebts = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            const { data } = await axios.get('http://localhost:5010/api/cashier/debts', config);
+            const { data } = await axios.get('/api/cashier/debts', config);
             setDebts(data);
         } catch (err) { console.error(err); }
         finally { setLoading(false); }
@@ -30,11 +30,13 @@ const Debts = () => {
         }
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`http://localhost:5010/api/cashier/debts/${payModal._id}`, { amountPaid: paymentAmount }, config);
+            const { data } = await axios.patch(`/api/cashier/debts/${payModal._id}`, { amountPaid: paymentAmount }, config);
             setPayModal(null);
             setPaymentAmount('');
             fetchDebts();
-            alert('Lacag-bixinta si guul leh ayaa loo keydiyey.');
+            alert(data?.status === 'PAID'
+                ? 'Daynta waa la bixiyey.'
+                : 'Lacag-bixinta si guul leh ayaa loo keydiyey.');
         } catch (err) { alert(err.response?.data?.message || 'Qalad ayaa ka dhacay keydinta lacag-bixinta.'); }
     };
 
@@ -66,7 +68,9 @@ const Debts = () => {
                 {filtered.map((debt) => (
                     <div key={debt._id} className="bg-white rounded-[2rem] p-6 shadow-md border border-slate-100 hover:shadow-xl transition-all group relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-4">
-                            {debt.status === 'PARTIAL' ? (
+                            {debt.status === 'PAID' ? (
+                                <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-3 py-1 rounded-full border border-emerald-200 uppercase italic">Waa La Bixiyey</span>
+                            ) : debt.status === 'PARTIAL' ? (
                                 <span className="bg-blue-100 text-blue-600 text-[10px] font-black px-3 py-1 rounded-full border border-blue-200 uppercase italic">Qayb La Bixiyey</span>
                             ) : (
                                 <span className="bg-red-100 text-red-600 text-[10px] font-black px-3 py-1 rounded-full border border-red-200 uppercase italic">Aan La Bixin</span>
@@ -104,12 +108,18 @@ const Debts = () => {
                             </div>
                         </div>
 
-                        <button
-                            onClick={() => setPayModal(debt)}
-                            className="w-full bg-orange-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-orange-600/20 hover:bg-orange-700 hover:scale-[1.02] transition-all flex items-center justify-center gap-3 uppercase tracking-widest italic"
-                        >
-                            <DollarSign size={20} /> Qaado Lacag
-                        </button>
+                        {debt.status === 'PAID' ? (
+                            <div className="w-full bg-emerald-50 text-emerald-700 font-black py-4 rounded-2xl border border-emerald-200 flex items-center justify-center gap-3 uppercase tracking-widest italic">
+                                <CheckCircle size={20} /> Waa La Bixiyey
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => setPayModal(debt)}
+                                className="w-full bg-orange-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-orange-600/20 hover:bg-orange-700 hover:scale-[1.02] transition-all flex items-center justify-center gap-3 uppercase tracking-widest italic"
+                            >
+                                <DollarSign size={20} /> Qaado Lacag
+                            </button>
+                        )}
                     </div>
                 ))}
             </div>

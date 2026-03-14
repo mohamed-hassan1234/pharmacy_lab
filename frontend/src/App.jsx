@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import AdminDashboard from './pages/admin/Dashboard';
+import AdminFinance from './pages/admin/Finance';
 import AdminReports from './pages/admin/Reports';
 import CashierDashboard from './pages/cashier/Dashboard';
 import PatientRegistration from './pages/cashier/PatientRegistration';
@@ -12,6 +13,7 @@ import MedicineRegistration from './pages/cashier/Medicines';
 import SupplierManagement from './pages/cashier/Suppliers';
 import DebtManagement from './pages/cashier/Debts';
 import CashierReports from './pages/cashier/Reports';
+import CashierFinance from './pages/cashier/Finance';
 import CustomerManagement from './pages/cashier/Customers';
 import LabPayments from './pages/cashier/LabPayments';
 import DoctorConsultations from './pages/cashier/DoctorConsultations';
@@ -44,6 +46,7 @@ function App() {
 
             {/* Admin Routes */}
             <Route path="admin" element={<AdminDashboard />} />
+            <Route path="admin/finance" element={<AdminFinance />} />
             <Route path="admin/reports" element={<AdminReports />} />
 
             {/* Cashier Routes */}
@@ -55,6 +58,7 @@ function App() {
             <Route path="cashier/medicines" element={<MedicineRegistration />} />
             <Route path="cashier/suppliers" element={<SupplierManagement />} />
             <Route path="cashier/debts" element={<DebtManagement />} />
+            <Route path="cashier/finance" element={<CashierFinance />} />
             <Route path="cashier/reports" element={<CashierReports />} />
             <Route path="cashier/lab-payments" element={<LabPayments />} />
             <Route path="cashier/lab" element={<LabTests />} />

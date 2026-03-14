@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
-const API_URL = 'http://localhost:5010/api/assistant/chat';
+const API_URL = '/api/assistant/chat';
 
 const getDefaultSuggestions = (role, lang = 'en') => {
   if (lang === 'so') {

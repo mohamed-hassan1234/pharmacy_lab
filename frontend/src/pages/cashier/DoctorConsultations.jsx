@@ -122,7 +122,7 @@ const DoctorConsultations = () => {
 
     const fetchConsultations = async () => {
         try {
-            const { data } = await axios.get('http://localhost:5010/api/lab/requests', getAuthConfig());
+            const { data } = await axios.get('/api/lab/requests', getAuthConfig());
             const relevantConsultations = (Array.isArray(data) ? data : []).filter((r) =>
                 ['Sent to Cashier', 'Cashier Responded', 'Completed'].includes(r.status) && r.doctorConclusion
             );
@@ -132,7 +132,7 @@ const DoctorConsultations = () => {
 
     const fetchInventoryMedicines = async () => {
         try {
-            const { data } = await axios.get('http://localhost:5010/api/inventory/medicines', getAuthConfig());
+            const { data } = await axios.get('/api/inventory/medicines', getAuthConfig());
             setInventoryMedicines(Array.isArray(data) ? data : []);
         } catch (err) { console.error(err); }
     };
@@ -154,7 +154,7 @@ const DoctorConsultations = () => {
         setSavingCashierResponse(true);
         try {
             const { data } = await axios.patch(
-                `http://localhost:5010/api/lab/requests/${selectedConsultation._id}/cashier-response`,
+                `/api/lab/requests/${selectedConsultation._id}/cashier-response`,
                 { cashierResponse: cashierResponseText.trim() },
                 getAuthConfig()
             );
@@ -203,7 +203,7 @@ const DoctorConsultations = () => {
                 ? selectedConsultation.prescriptionId?._id
                 : selectedConsultation.prescriptionId;
 
-            const { data } = await axios.post('http://localhost:5010/api/cashier/sales', {
+            const { data } = await axios.post('/api/cashier/sales', {
                 items: built.items,
                 customerName: selectedConsultation.patientName,
                 customerId: null,

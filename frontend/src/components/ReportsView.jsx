@@ -4,7 +4,7 @@ import { CalendarDays, CreditCard, RefreshCcw, TrendingUp, Users, Wallet } from 
 import { useAuth } from '../context/AuthContext';
 import { convertSosToUsd, convertUsdToSos } from '../utils/currency';
 
-const API_BASE_URL = 'http://localhost:5010';
+const API_BASE_URL = '';
 const DEFAULT_SOS_PER_USD = 28;
 
 const PERIOD_OPTIONS = [

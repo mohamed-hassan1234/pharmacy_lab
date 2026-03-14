@@ -46,7 +46,7 @@ const LabTests = () => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
 
-            let url = 'http://localhost:5010/api/lab/requests?isPaid=true';
+            let url = '/api/lab/requests?isPaid=true';
             if (statusFilter !== 'All') {
                 url += `&status=${statusFilter}`;
             }
@@ -71,7 +71,7 @@ const LabTests = () => {
         }
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`http://localhost:5010/api/lab/requests/${selectedRequest._id}/results`, { results, resultText: resultText.trim() }, config);
+            await axios.patch(`/api/lab/requests/${selectedRequest._id}/results`, { results, resultText: resultText.trim() }, config);
             if (!silent) alert('Natiijooyinka si guul leh ayaa loo keydiyey.');
             setShowResults(false);
             fetchRequests();
@@ -85,7 +85,7 @@ const LabTests = () => {
     const handleComplete = async (id) => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`http://localhost:5010/api/lab/requests/${id}/complete`, {}, config);
+            await axios.patch(`/api/lab/requests/${id}/complete`, {}, config);
             alert('Bukaanka si guul leh ayaa loogu celiyey dhakhtarka.');
             fetchRequests();
         } catch (err) { alert(err.response?.data?.message || 'Qalad ayaa ka dhacay dhammaystirka codsiga.'); }
@@ -126,7 +126,7 @@ const LabTests = () => {
     const handlePrintResults = async (request) => {
         try {
             const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('clinic_user')).token}` } };
-            await axios.patch(`http://localhost:5010/api/lab/requests/${request._id}/print`, {}, config);
+            await axios.patch(`/api/lab/requests/${request._id}/print`, {}, config);
 
             const printWindow = window.open('', '', 'width=800,height=1000');
             printWindow.document.write(`

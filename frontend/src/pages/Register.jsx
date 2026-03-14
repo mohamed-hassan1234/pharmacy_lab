@@ -21,7 +21,7 @@ const Register = () => {
         setError('');
         setLoading(true);
         try {
-            await axios.post('http://localhost:5010/api/auth/register', formData);
+            await axios.post('/api/auth/register', formData);
             navigate('/login');
         } catch (err) {
             setError(err.response?.data?.message || 'Isdiiwaangelintu way fashilantay');

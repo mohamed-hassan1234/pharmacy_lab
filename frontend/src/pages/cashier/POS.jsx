@@ -32,9 +32,9 @@ const PharmacyPOS = () => {
     const loadAll = async () => {
         try {
             const [medicineRes, customerRes, prescriptionRes] = await Promise.all([
-                axios.get('http://localhost:5010/api/inventory/medicines', authConfig()),
-                axios.get('http://localhost:5010/api/cashier/customers', authConfig()),
-                axios.get('http://localhost:5010/api/cashier/prescriptions', authConfig())
+                axios.get('/api/inventory/medicines', authConfig()),
+                axios.get('/api/cashier/customers', authConfig()),
+                axios.get('/api/cashier/prescriptions', authConfig())
             ]);
             setMedicines(Array.isArray(medicineRes.data) ? medicineRes.data : []);
             setCustomers(Array.isArray(customerRes.data) ? customerRes.data : []);
@@ -171,7 +171,7 @@ const PharmacyPOS = () => {
 
         setLoading(true);
         try {
-            const { data } = await axios.post('http://localhost:5010/api/cashier/sales', {
+            const { data } = await axios.post('/api/cashier/sales', {
                 items: cart,
                 customerName: selectedCustomer ? selectedCustomer.name : customerName,
                 customerId: selectedCustomerId || null,

@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            const { data } = await axios.post('http://localhost:5010/api/auth/login', { email, password });
+            const { data } = await axios.post('/api/auth/login', { email, password });
             setUser(data);
             localStorage.setItem('clinic_user', JSON.stringify(data));
             const nextMode = resolveViewModeForRole(data?.role, localStorage.getItem(VIEW_MODE_KEY));
