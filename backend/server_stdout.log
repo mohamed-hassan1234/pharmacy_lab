@@ -1,6 +1,0 @@
-
-> clinic-pharmacy-backend@1.0.0 start
-> node server.js
-
-Server running in development mode on port 5010
-MongoDB Connected: localhost

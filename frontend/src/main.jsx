@@ -4,7 +4,11 @@ import axios from 'axios'
 import './index.css'
 import App from './App.jsx'
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'https://saalim.somzaki.com').replace(/\/+$/, '')
+const defaultApiBaseUrl = import.meta.env.DEV
+  ? 'http://127.0.0.1:5010'
+  : window.location.origin
+
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || defaultApiBaseUrl).replace(/\/+$/, '')
 
 axios.defaults.baseURL = apiBaseUrl
 axios.defaults.withCredentials = true
