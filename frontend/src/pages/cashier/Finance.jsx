@@ -35,6 +35,7 @@ const PERIOD_OPTIONS = [
 const formatMoney = (value) => `${Number(value || 0).toLocaleString()} SOS`;
 const formatUsd = (value) => `$${convertSosToUsd(Number(value || 0))} USD`;
 const formatDualMoney = (value) => `${formatMoney(value)} / ${formatUsd(value)}`;
+const formatCount = (value) => Number(value || 0).toLocaleString();
 const escapeHtml = (value) => String(value ?? '')
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
@@ -206,6 +207,35 @@ function CashierFinance({
       { label: 'Qiimaha Wax Iibsiga ee Kaydka', value: formatMoney(summary.stockPurchaseValue), secondary: formatUsd(summary.stockPurchaseValue), comparison: `${Number(summary.totalBoxesInStock || 0).toLocaleString()} kartoon / ${Number(summary.totalUnitsInStock || 0).toLocaleString()} xabbo` },
       { label: 'Qiimaha La Filayo ee Iibka Kaydka', value: formatMoney(summary.stockExpectedSalesValue), secondary: formatUsd(summary.stockExpectedSalesValue), comparison: `Dayn harsan: ${formatDualMoney(summary.outstandingDebt)}` }
     ];
+    const printHighlights = [
+      `Wadarta iibka muddadan waa ${formatDualMoney(summary.totalRevenue)}, halka faa'iidada saafiga ahi ay tahay ${formatDualMoney(summary.netIncome)}.`,
+      `Waxaa la sameeyey ${formatCount(summary.invoiceCount)} biil, waxaana kaash ahaan soo galay ${formatDualMoney(summary.cashRevenue)} halka dayn ahaan loo qoray ${formatDualMoney(summary.creditRevenue)}.`,
+      `Daynta weli harsan waa ${formatDualMoney(summary.outstandingDebt)}, halka lacagta kaydka hadda taal lagu qiyaasay ${formatDualMoney(summary.stockPurchaseValue)}.`,
+      `Qiimaha iibka ee la filayo kaydka hadda jira waa ${formatDualMoney(summary.stockExpectedSalesValue)}, waxaana laga filan karaa faa'iido dhan ${formatDualMoney(summary.stockExpectedProfit)}.`
+    ];
+    const comparisonRows = [
+      {
+        label: 'Wadarta Iibka',
+        current: summary.totalRevenue,
+        previous: previous.totalRevenue,
+      },
+      {
+        label: 'Kharashka Alaabta',
+        current: summary.totalCost,
+        previous: previous.totalCost,
+      },
+      {
+        label: 'Dakhliga Saafiga ah',
+        current: summary.netIncome,
+        previous: previous.netIncome,
+      },
+      {
+        label: 'Biilasha',
+        current: summary.invoiceCount,
+        previous: previous.invoiceCount,
+        formatter: (value) => formatCount(value),
+      },
+    ];
 
     const timelineTable = buildPrintTable(
       [
@@ -268,6 +298,16 @@ function CashierFinance({
       inventoryLedger,
       'Kayd daawo ma jiro.'
     );
+    const comparisonTable = buildPrintTable(
+      [
+        { label: 'Cabir', render: (row) => `<strong>${escapeHtml(row.label)}</strong>` },
+        { label: 'Muddadan', render: (row) => escapeHtml((row.formatter || formatDualMoney)(row.current)) },
+        { label: periodRange.previousLabel || 'Muddadii Hore', render: (row) => escapeHtml((row.formatter || formatDualMoney)(row.previous)) },
+        { label: 'Isbarbardhig', render: (row) => escapeHtml(getComparisonLabel(row.current, row.previous)) },
+      ],
+      comparisonRows,
+      'Wax isbarbardhig ah lama helin.'
+    );
 
     printWindow.document.open();
     printWindow.document.write(`
@@ -275,15 +315,15 @@ function CashierFinance({
         <head>
           <title>${escapeHtml(title)} - Finance Report</title>
           <style>
-            @page { size: A4 portrait; margin: 12mm; }
+            @page { size: A4 landscape; margin: 10mm; }
             * { box-sizing: border-box; }
             body { margin: 0; font-family: Arial, sans-serif; color: #0f172a; background: #e2e8f0; }
-            .sheet { width: 100%; max-width: 210mm; min-height: 297mm; margin: 0 auto; padding: 10mm; background: #ffffff; }
+            .sheet { width: 100%; max-width: 297mm; min-height: 210mm; margin: 0 auto; padding: 8mm; background: #ffffff; }
             .header { border-bottom: 3px solid #0f766e; padding-bottom: 10px; margin-bottom: 16px; }
             .title { margin: 0; font-size: 26px; font-weight: 800; }
             .subtitle { margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: #475569; }
             .meta { margin-top: 8px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; font-size: 11px; }
-            .summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+            .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
             .summary-card { border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px; background: #f8fafc; }
             .summary-card h3 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; color: #475569; }
             .summary-value { font-size: 16px; font-weight: 700; margin: 0; }
@@ -296,6 +336,8 @@ function CashierFinance({
             th, td { border: 1px solid #cbd5e1; padding: 6px 7px; vertical-align: top; word-break: break-word; font-size: 10px; text-align: left; }
             th { background: #e2e8f0; font-size: 10px; text-transform: uppercase; }
             .empty-row { border: 1px dashed #cbd5e1; border-radius: 10px; padding: 12px; font-size: 11px; color: #64748b; background: #f8fafc; }
+            .highlight-list { margin: 0; padding-left: 18px; }
+            .highlight-list li { margin: 0 0 8px; font-size: 11px; line-height: 1.6; }
             @media print { body { background: #ffffff; } .sheet { max-width: none; margin: 0; padding: 0; } }
           </style>
         </head>
@@ -324,10 +366,22 @@ function CashierFinance({
             </div>
 
             <div class="section">
+              <h2>Falanqayn Kooban oo La Fahmi Karo</h2>
+              <ul class="highlight-list">
+                ${printHighlights.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
+              </ul>
+            </div>
+
+            <div class="section">
               <h2>Habka Xisaabta</h2>
               <p>${escapeHtml(accountingNotes.medicineCostBasis || 'Xog hab xisaabeed lama helin.')}</p>
               ${accountingNotes.inventoryPurchaseBasis ? `<p>${escapeHtml(accountingNotes.inventoryPurchaseBasis)}</p>` : ''}
               <p>Dhammaan xogtaada waxa ay ku kaydsan tahay SOS, halka USD lagu muujinayo si akhrisku u sahlanaado.</p>
+            </div>
+
+            <div class="section">
+              <h2>Isbarbardhigga Muddadan iyo Muddadii Hore</h2>
+              ${comparisonTable}
             </div>
 
             <div class="section">
@@ -414,7 +468,7 @@ function CashierFinance({
             </button>
             <button type="button" className="btn-secondary" onClick={printFinanceReport} disabled={loading || !report}>
               <Printer size={16} />
-              Daabac A4
+              Daabac Faahfaahin A4
             </button>
             <button
               type="button"

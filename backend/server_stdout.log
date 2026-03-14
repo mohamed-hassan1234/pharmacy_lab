@@ -1,2 +1,4 @@
 Server running in development mode on port 5010
 MongoDB Connected: localhost
+[0mPOST /api/auth/register [32m201[0m 129.233 ms - 403[0m
+[0mPOST /api/auth/login [32m200[0m 61.153 ms - 403[0m

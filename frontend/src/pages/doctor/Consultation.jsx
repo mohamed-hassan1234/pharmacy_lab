@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Search, FileText, Printer, Clock, CheckCircle, AlertCircle, User, Calendar, FlaskConical, Beaker } from 'lucide-react';
 
@@ -15,6 +15,8 @@ const DoctorConsultation = () => {
     const [prescribedMedicines, setPrescribedMedicines] = useState([]);
     const [diagnosis, setDiagnosis] = useState('');
     const [physicalExam, setPhysicalExam] = useState('');
+    const diagnosisTextareaRef = useRef(null);
+    const physicalExamTextareaRef = useRef(null);
 
     const getRequestedTestEntries = (requestedTests = {}) => [
         { key: 'hematology', short: 'HEMA', className: 'bg-blue-100 text-blue-600' },
@@ -98,6 +100,12 @@ const DoctorConsultation = () => {
         }));
     };
 
+    const resizeTextarea = (textarea, minimumHeight = 176) => {
+        if (!textarea) return;
+        textarea.style.height = 'auto';
+        textarea.style.height = `${Math.max(textarea.scrollHeight, minimumHeight)}px`;
+    };
+
 
     useEffect(() => {
         fetchMyLabRequests();
@@ -158,6 +166,14 @@ const DoctorConsultation = () => {
             setMedicineSearch('');
         }
     }, [showPrescriptionForm]);
+
+    useEffect(() => {
+        resizeTextarea(diagnosisTextareaRef.current, 224);
+    }, [diagnosis, showPrescriptionForm]);
+
+    useEffect(() => {
+        resizeTextarea(physicalExamTextareaRef.current, 176);
+    }, [physicalExam, showPrescriptionForm]);
 
     const addMedicine = (med) => {
         if (prescribedMedicines.find(m => m.medicineId === med._id)) return;
@@ -1004,22 +1020,36 @@ const DoctorConsultation = () => {
                                     <div className="group">
                                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[.3em] mb-4 px-2 group-focus-within:text-emerald-500 transition-colors">1. Ogaanshaha</label>
                                         <textarea
-                                            className="w-full bg-slate-50 border-2 border-slate-100 rounded-[2rem] p-8 font-bold text-xl text-slate-800 focus:border-emerald-500 focus:bg-white outline-none h-56 shadow-inner transition-all resize-none"
+                                            ref={diagnosisTextareaRef}
+                                            className="w-full min-h-[14rem] overflow-hidden bg-slate-50 border-2 border-slate-100 rounded-[2rem] p-8 font-bold text-xl text-slate-800 focus:border-emerald-500 focus:bg-white outline-none shadow-inner transition-all resize-y"
                                             placeholder="Halkan ku qor qoraalka dhakhtarka ama ogaanshaha dambe..."
                                             value={diagnosis}
-                                            onChange={e => setDiagnosis(e.target.value)}
+                                            onChange={(e) => {
+                                                setDiagnosis(e.target.value);
+                                                resizeTextarea(e.target, 224);
+                                            }}
                                             readOnly={['Completed', 'Reviewed'].includes(selectedRequest.status)}
                                         ></textarea>
+                                        <p className="mt-2 px-2 text-xs font-semibold text-slate-500">
+                                            Qoraalkan ma laha xad gaaban. Dhakhtarku waxa uu geli karaa faahfaahin kasta oo loo baahan yahay.
+                                        </p>
                                     </div>
                                     <div className="group">
                                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[.3em] mb-4 px-2 group-focus-within:text-blue-500 transition-colors">2. Baaritaanka Jirka / Faahfaahin</label>
                                         <textarea
-                                            className="w-full bg-slate-50 border-2 border-slate-100 rounded-[2rem] p-8 font-bold text-slate-800 focus:border-blue-500 focus:bg-white outline-none h-44 shadow-inner transition-all resize-none"
+                                            ref={physicalExamTextareaRef}
+                                            className="w-full min-h-[11rem] overflow-hidden bg-slate-50 border-2 border-slate-100 rounded-[2rem] p-8 font-bold text-slate-800 focus:border-blue-500 focus:bg-white outline-none shadow-inner transition-all resize-y"
                                             placeholder="Halkan ku qor waxyaabaha baaritaanka jirka ama faahfaahin dheeraad ah..."
                                             value={physicalExam}
-                                            onChange={e => setPhysicalExam(e.target.value)}
+                                            onChange={(e) => {
+                                                setPhysicalExam(e.target.value);
+                                                resizeTextarea(e.target, 176);
+                                            }}
                                             readOnly={['Completed', 'Reviewed'].includes(selectedRequest.status)}
                                         ></textarea>
+                                        <p className="mt-2 px-2 text-xs font-semibold text-slate-500">
+                                            Waxaad geli kartaa qoraal dheer, tilmaamo badan, ama sharaxaad buuxda oo loo diro qasnajiga.
+                                        </p>
                                     </div>
                                     {selectedRequest.cashierResponse && (
                                         <div className="rounded-[2rem] border-2 border-amber-200 bg-amber-50 p-6">
