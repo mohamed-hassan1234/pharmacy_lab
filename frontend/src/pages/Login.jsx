@@ -4,8 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { Stethoscope, Lock, Mail, Eye, EyeOff } from 'lucide-react';
 
 const Login = () => {
-    const [email, setEmail] = useState('admin@clinic.com');
-    const [password, setPassword] = useState('password123');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -112,7 +112,7 @@ const Login = () => {
                             <Link to="/register" className="text-primary font-bold hover:underline">Isdiiwaangeli</Link>
                         </p>
                         <p className="text-center text-sm text-slate-500">
-                            Gelitaanka tijaabada: <span className="font-semibold text-primary">admin@clinic.com / password123</span>
+                            Isticmaal akoon aad adigu iska diiwaangelisay si aad u gasho.
                         </p>
                     </div>
                 </div>

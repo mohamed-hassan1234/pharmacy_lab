@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { protect, optionalProtect, getJwtSecret, getJwtOptions } = require('../middleware/auth');
+const { protect, getJwtSecret, getJwtSignOptions } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/requestSecurity');
 const {
     cleanString,
@@ -15,7 +15,7 @@ const ALLOWED_ROLES = ['Admin', 'Cashier', 'Doctor', 'Lab Technician'];
 
 const generateToken = (id) => {
     return jwt.sign({ id }, getJwtSecret(), {
-        ...getJwtOptions(),
+        ...getJwtSignOptions(),
         expiresIn: process.env.JWT_EXPIRES_IN || '12h'
     });
 };
@@ -62,26 +62,16 @@ router.post('/login', authLimiter, async (req, res) => {
 
 // @desc    Register a new user (Admin only or Setup)
 // @route   POST /api/auth/register
-router.post('/register', authLimiter, optionalProtect, async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
     try {
-        const userCount = await User.countDocuments();
-        const isFirstUser = userCount === 0;
         const name = cleanString(req.body?.name, { maxLength: 80 });
         const email = normalizeEmail(req.body?.email);
         const requestedRole = cleanString(req.body?.role, { maxLength: 40 });
-        const role = isFirstUser ? 'Admin' : requestedRole;
+        const role = requestedRole;
         const password = assertStrongPassword(cleanString(req.body?.password, {
             trim: false,
             maxLength: 128
         }));
-        const setupKey = cleanString(
-            req.body?.setupKey || req.headers['x-setup-key'],
-            { maxLength: 128, allowEmpty: true }
-        );
-        const requiredSetupKey = cleanString(process.env.INITIAL_ADMIN_SETUP_KEY, {
-            maxLength: 128,
-            allowEmpty: true
-        });
 
         if (!name) {
             return res.status(400).json({ message: 'Name is required' });
@@ -91,20 +81,8 @@ router.post('/register', authLimiter, optionalProtect, async (req, res) => {
             return res.status(400).json({ message: 'A valid email is required' });
         }
 
-        if (!isFirstUser && (!req.user || req.user.role !== 'Admin')) {
-            return res.status(403).json({ message: 'Only admin users can create additional accounts' });
-        }
-
-        if (isFirstUser && requiredSetupKey && setupKey !== requiredSetupKey) {
-            return res.status(403).json({ message: 'A valid setup key is required to create the first admin account' });
-        }
-
         if (!ALLOWED_ROLES.includes(role)) {
             return res.status(400).json({ message: 'Invalid user role' });
-        }
-
-        if (isFirstUser && requestedRole && requestedRole !== 'Admin') {
-            return res.status(400).json({ message: 'The first account must be an Admin account' });
         }
 
         const userExists = await User.findOne({ email });
@@ -126,12 +104,9 @@ router.post('/register', authLimiter, optionalProtect, async (req, res) => {
             name: user.name,
             email: user.email,
             role: user.role,
-            mustChangePassword: Boolean(user.mustChangePassword)
+            mustChangePassword: Boolean(user.mustChangePassword),
+            token: generateToken(user._id)
         };
-
-        if (isFirstUser) {
-            responseBody.token = generateToken(user._id);
-        }
 
         res.status(201).json(responseBody);
     } catch (error) {

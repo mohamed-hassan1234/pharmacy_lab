@@ -27,17 +27,30 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
     }, []);
 
+    const persistUserSession = (data) => {
+        setUser(data);
+        localStorage.setItem('clinic_user', JSON.stringify(data));
+        const nextMode = resolveViewModeForRole(data?.role, localStorage.getItem(VIEW_MODE_KEY));
+        setViewMode(nextMode);
+        localStorage.setItem(VIEW_MODE_KEY, nextMode);
+        return data;
+    };
+
     const login = async (email, password) => {
         try {
             const { data } = await axios.post('/api/auth/login', { email, password });
-            setUser(data);
-            localStorage.setItem('clinic_user', JSON.stringify(data));
-            const nextMode = resolveViewModeForRole(data?.role, localStorage.getItem(VIEW_MODE_KEY));
-            setViewMode(nextMode);
-            localStorage.setItem(VIEW_MODE_KEY, nextMode);
-            return data;
+            return persistUserSession(data);
         } catch (error) {
             throw error.response?.data?.message || 'Gelitaanku wuu fashilmay';
+        }
+    };
+
+    const register = async (payload) => {
+        try {
+            const { data } = await axios.post('/api/auth/register', payload);
+            return persistUserSession(data);
+        } catch (error) {
+            throw error.response?.data?.message || 'Isdiiwaangelintu way fashilantay';
         }
     };
 
@@ -57,7 +70,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, loading, viewMode, setViewMode, toggleViewMode }}>
+        <AuthContext.Provider value={{ user, login, register, logout, loading, viewMode, setViewMode, toggleViewMode }}>
             {children}
         </AuthContext.Provider>
     );

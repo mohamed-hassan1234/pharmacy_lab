@@ -9,8 +9,13 @@ const getJwtSecret = () => {
     return process.env.JWT_SECRET;
 };
 
-const getJwtOptions = () => ({
+const getJwtVerifyOptions = () => ({
     algorithms: ['HS256'],
+    issuer: process.env.JWT_ISSUER || 'clinic-pharmacy-backend',
+    audience: process.env.JWT_AUDIENCE || 'clinic-pharmacy-users'
+});
+
+const getJwtSignOptions = () => ({
     issuer: process.env.JWT_ISSUER || 'clinic-pharmacy-backend',
     audience: process.env.JWT_AUDIENCE || 'clinic-pharmacy-users'
 });
@@ -25,7 +30,7 @@ const extractBearerToken = (req) => {
 };
 
 const loadAuthenticatedUser = async (token) => {
-    const decoded = jwt.verify(token, getJwtSecret(), getJwtOptions());
+    const decoded = jwt.verify(token, getJwtSecret(), getJwtVerifyOptions());
     const user = await User.findById(decoded.id).select('-password');
 
     if (!user) {
@@ -98,5 +103,6 @@ module.exports = {
     authorize,
     extractBearerToken,
     getJwtSecret,
-    getJwtOptions
+    getJwtVerifyOptions,
+    getJwtSignOptions
 };

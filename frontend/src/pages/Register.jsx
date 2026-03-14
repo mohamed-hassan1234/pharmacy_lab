@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 import { Stethoscope, User, Mail, Lock, Briefcase, Eye, EyeOff } from 'lucide-react';
 
 const Register = () => {
@@ -14,6 +14,7 @@ const Register = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
+    const { register } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -21,10 +22,16 @@ const Register = () => {
         setError('');
         setLoading(true);
         try {
-            await axios.post('/api/auth/register', formData);
-            navigate('/login');
+            const user = await register(formData);
+            const routes = {
+                Admin: '/admin',
+                Cashier: '/cashier/register',
+                Doctor: '/doctor',
+                'Lab Technician': '/lab'
+            };
+            navigate(routes[user.role] || '/');
         } catch (err) {
-            setError(err.response?.data?.message || 'Isdiiwaangelintu way fashilantay');
+            setError(err);
         } finally {
             setLoading(false);
         }
@@ -117,6 +124,9 @@ const Register = () => {
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
+                            <p className="text-xs text-slate-500 mt-2">
+                                Isticmaal ugu yaraan 10 xaraf oo leh xaraf weyn, xaraf yar, lambar, iyo calaamad gaar ah.
+                            </p>
                         </div>
 
                         <button
